@@ -2,8 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import socketio
-from database import engine
-from models import Base
+from database import engine, Base
+# from models import 
 from routes import auth, posts, users, messages
 import os
 
