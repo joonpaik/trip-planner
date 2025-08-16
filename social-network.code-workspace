@@ -1,0 +1,44 @@
+{
+  "folders": [
+    {
+      "name": "🏠 Root",
+      "path": "."
+    },
+    {
+      "name": "⚛️ Frontend (React TS)",
+      "path": "./frontend"
+    },
+    {
+      "name": "🐍 Backend (Python)",
+      "path": "./backend"
+    },
+    {
+      "name": "🐳 DevOps",
+      "path": "./k8s"
+    }
+  ],
+  "settings": {
+    "python.defaultInterpreterPath": "./backend/venv/bin/python",
+    "python.terminal.activateEnvironment": true,
+    "python.linting.enabled": true,
+    "python.formatting.provider": "black",
+    "typescript.preferences.importModuleSpecifier": "relative",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": true
+    },
+    "emmet.includeLanguages": {
+      "typescript": "typescriptreact"
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-python.python",
+      "dsznajder.es7-react-js-snippets",
+      "ms-azuretools.vscode-docker",
+      "humao.rest-client",
+      "eamodio.gitlens",
+      "esbenp.prettier-vscode"
+    ]
+  }
+}
