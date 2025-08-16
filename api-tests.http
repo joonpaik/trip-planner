@@ -1,0 +1,41 @@
+### Variables
+@baseUrl = http://localhost:8000
+@token = your-jwt-token-here
+
+### Health Check
+GET {{baseUrl}}/health
+
+### Register User
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "test@family.com",
+  "username": "testuser",
+  "password": "testpass123",
+  "full_name": "Test User"
+}
+
+### Login User
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@family.com",
+  "password": "testpass123"
+}
+
+### Get Posts
+GET {{baseUrl}}/posts
+Authorization: Bearer {{token}}
+
+### Create Post
+POST {{baseUrl}}/posts
+Authorization: Bearer {{token}}
+Content-Type: multipart/form-data; boundary=boundary
+
+--boundary
+Content-Disposition: form-data; name="content"
+
+This is a test post from the API!
+--boundary--

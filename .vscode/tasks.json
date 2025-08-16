@@ -31,6 +31,12 @@
         "kind": "build",
         "isDefault": true
       }
+    },
+    {
+      "label": "Docker Up",
+      "type": "shell",
+      "command": "docker-compose up --build",
+      "group": "build"
     }
   ]
 }
