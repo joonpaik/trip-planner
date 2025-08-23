@@ -2,8 +2,8 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import socketio
-from database import engine, Base
-# from models import 
+from database import engine, Base, SessionLocal
+from models import UserTasksEntity
 from routes import auth, posts, users, messages
 import os
 
@@ -39,8 +39,18 @@ async def health_check():
 
 @app.get("/")
 async def root():
+    fetch_user_tasks()
     return {"message": "Family Social Network API", "version": "1.0.0"}
 
+def fetch_user_tasks():
+    db = SessionLocal()
+    tasks = db.query(UserTasksEntity.UserTasks).all()
+    for task in tasks:
+        print(f"Task ID: {task.id}, Title: {task.title}, Status: {task.status}")
+    db.close()
+
+print("Starting application...")
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(app, host="127.0.0.1", port=8000, reload=True)
+    
