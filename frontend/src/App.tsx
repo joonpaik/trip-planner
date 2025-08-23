@@ -1,17 +1,25 @@
 import React from 'react';
-import logo from './logo.svg';
+import logo from '../assets/logo.svg';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './components/home';
+import Home from './components/Home';
 import './App.css';
+import { BrowserRouter } from 'react-router-dom';
+import NavBar from './components/Navbar';
+import AppRoutes from './AppRoutes';
 
 function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        {/* Add more routes here later */}
-      </Routes>
-    </Router>
+    <BrowserRouter>
+      <div
+        className="min-h-screen"
+        style={{
+          background: 'linear-gradient(#A7E3E0, #14f2e7ff)',
+        }}
+      >
+        <NavBar />
+        <AppRoutes />
+      </div>
+    </BrowserRouter>
   );
 }
 
