@@ -16,6 +16,7 @@ interface UserTaskCard {
 }
 
 const Home: React.FC = () => {
+  const userTaskCards: UserTaskCard[] = [];
   const [userTasks, setUserTasks] = useState<UserTaskCard[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
