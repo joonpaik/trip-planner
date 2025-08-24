@@ -3,8 +3,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import socketio
 from database import engine, Base, SessionLocal
-from models import UserTasksEntity
-from routes import auth, posts, users, messages
+from models import user_tasks_model
+from routes import auth, posts, users, messages, user_tasks_routes
 import os
 
 # Create database tables
@@ -28,6 +28,7 @@ if not os.path.exists("uploads"):
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # Include routers
+app.include_router(user_tasks_routes.router)
 # app.include_router(auth.router, prefix="/auth", tags=["Authentication"])
 # app.include_router(posts.router, prefix="/posts", tags=["Posts"])
 # app.include_router(users.router, prefix="/users", tags=["Users"])
@@ -39,15 +40,8 @@ async def health_check():
 
 @app.get("/")
 async def root():
-    fetch_user_tasks()
     return {"message": "Family Social Network API", "version": "1.0.0"}
 
-def fetch_user_tasks():
-    db = SessionLocal()
-    tasks = db.query(UserTasksEntity.UserTasks).all()
-    for task in tasks:
-        print(f"Task ID: {task.id}, Title: {task.title}, Status: {task.status}")
-    db.close()
 
 print("Starting application...")
 if __name__ == "__main__":

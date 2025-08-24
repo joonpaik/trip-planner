@@ -2,8 +2,57 @@ import React, { useState, useEffect } from 'react';
 import '../index.css';
 import Card from './Card';
 import AnimationWrapper from './AnimationWrapper';
+import { databaseService } from '../services/databaseService';
+
+interface TableData {
+  [key: string]: any;
+}
+
+interface UserTaskCard {
+  title: string;
+  description: string;
+  status: number;
+  due_date: string;
+}
 
 const Home: React.FC = () => {
+  const [userTasks, setUserTasks] = useState<UserTaskCard[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchAndFormatData = async () => {
+      try {
+        setLoading(true);
+        setError('');
+
+        // Call your API
+        const rawData: TableData[] =
+          (await databaseService.getUserTasks()) as unknown as TableData[];
+
+        // Format the data for your Card components
+        const formattedData: UserTaskCard[] = rawData.map((item, index) => ({
+          id: item.id || index.toString(),
+          title: item.name || item.title || 'Default Title',
+          description: item.description || 'No description available',
+          status: item.status || 0,
+          due_date: item.due_date || 'No due date',
+        }));
+
+        setUserTasks(formattedData);
+      } catch (err) {
+        const errorMessage =
+          err instanceof Error ? err.message : 'Unknown error';
+        setError('Failed to load data: ' + errorMessage);
+        console.error('Error:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchAndFormatData();
+  }, []);
+
   const sampleCardData = [
     {
       title: 'Card 1',
