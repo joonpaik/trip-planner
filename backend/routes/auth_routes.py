@@ -39,8 +39,24 @@ class Token(BaseModel):
 db_dependency = Annotated[Session, Depends(get_db)]
 
 # Create User
-@router.post("/",status_code=status.HTTP_201_CREATED)
+@router.post("/register",status_code=status.HTTP_201_CREATED)
 async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
+    # Check for existing user
+    existing_username = db.query(User).filter(
+        (User.username == create_user_request.username)
+    ).first()
+
+    if existing_username:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
+
+    # Check for existing email
+    existing_email = db.query(User).filter(
+        (User.email == create_user_request.email)
+    ).first()
+
+    if existing_email:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+
     create_user_model = User(
         username=create_user_request.username,
         uid=str(uuid4()),
@@ -91,3 +107,25 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
         return {'username': username, 'uid': uid}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
+    
+
+"""
+    Login User API
+"""
+class UserLoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+def login(possible_user: UserLoginRequest, db: Session = Depends(get_db)):
+    # Check if user exists by username or email
+    user = db.query(User).filter(User.username == possible_user.username).first() | db.query(User).filter(User.email == possible_user.username).first()
+
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+    if not bcrypt_context.verify(possible_user.password, user.hashed_password):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid password")
+
+    # After Authenticating, create a JWT Token
+    access_token = create_access_token(user.username, user.uid, timedelta(minutes=30))
+    return {"access_token": access_token, "token_type": "bearer"}
