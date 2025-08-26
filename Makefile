@@ -1,7 +1,7 @@
 .PHONY: install dev test build clean docker-up docker-down
 
 install:
-	cd backend && python -m venv venv && source venv/bin/activate && pip install -r requirements.txt
+	cd backend && python3 -m venv venv && source venv/bin/activate && pip install -r requirements.txt
 	cd frontend && npm install
 
 dev:
