@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import '../index.css';
-import Card from './Card';
-import AnimationWrapper from './AnimationWrapper';
-import { databaseService } from '../services/databaseService';
+import Card from '../components/Card';
+import AnimationWrapper from '../components/AnimationWrapper';
+import { routeService } from '../services/routeService';
 
 interface TableData {
   [key: string]: any;
@@ -28,7 +28,7 @@ const Home: React.FC = () => {
 
         // Call your API
         const rawData: TableData[] =
-          (await databaseService.getUserTasks()) as unknown as TableData[];
+          (await routeService.getUserTasks()) as unknown as TableData[];
 
         // Format the data for your Card components
         const formattedData: UserTaskCard[] = rawData.map((item, index) => ({

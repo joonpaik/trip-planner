@@ -1,46 +1,86 @@
 import React from 'react';
 import logo from '../assets/logo.svg';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import Home from './components/Home';
+import Home from './pages/Home';
 import './App.css';
 import { BrowserRouter } from 'react-router-dom';
 import NavBar from './components/Navbar';
 import AppRoutes from './AppRoutes';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AuthProvider } from './context/authContext';
+import { LoginForm } from './pages/Login';
 
 function App() {
   return (
-    <BrowserRouter>
-      <div
-        className="min-h-screen"
-        style={{
-          background: 'linear-gradient(#A7E3E0, #14f2e7ff)',
-        }}
-      >
-        <NavBar />
-        <AppRoutes />
-      </div>
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public login page */}
+          <Route path="/login" element={<LoginForm />} />
+
+          {/* Protected home page */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Home />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* Other protected routes */}
+          <Route
+            path="/*"
+            element={
+              <ProtectedRoute>
+                <AppRoutes />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
 
 export default App;
 
-// alert('App.tsx is loading!');
-//   return (
-//     <div className="App">
-//       <header className="App-header">
-//         <img src={logo} className="App-logo" alt="logo" />
-//         <p>
-//           Edit <code>src/App.tsx</code> and save to reload.
-//         </p>
-//         <a
-//           className="App-link"
-//           href="https://reactjs.org"
-//           target="_blank"
-//           rel="noopener noreferrer"
+{
+  /* <ProtectedRoute>
+        <BrowserRouter>
+          <Route path="/home" element={<Home />} />
+
+          <div
+            className="min-h-screen"
+            style={{ background: 'linear-gradient(#A7E3E0, #14f2e7ff)' }}
+          >
+            <NavBar />
+            <AppRoutes />
+          </div>
+        </BrowserRouter>
+      </ProtectedRoute> */
+}
+
+//  <AuthProvider>
+//       <BrowserRouter>
+//         <div
+//           className="min-h-screen"
+//           style={{ background: 'linear-gradient(#A7E3E0, #14f2e7ff)' }}
 //         >
-//           Learn React
-//         </a>
-//       </header>
-//     </div>
-//   );
+//           <Routes>
+//             <Route path="/login" element={<LoginForm />} />
+//             <Route
+//               path="/"
+//               element={
+//                 <ProtectedRoute>
+//                   <NavBar />
+//                   <Home />
+//                 </ProtectedRoute>
+//               }
+//             />
+//             {/* Add more routes here later */}
+//             <Route path="/*" element={<AppRoutes />} />
+//           </Routes>
+//         </div>
+//       </BrowserRouter>
+//     </AuthProvider>

@@ -1,0 +1,119 @@
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  ReactNode,
+} from 'react';
+import { User, AuthContextType, LoginResponse } from '../types/auth';
+import { authService } from '../services/authService';
+import { tokenService } from '../services/tokenService';
+
+export const AuthContext = createContext<AuthContextType | null>(null);
+
+interface AuthProviderProps {
+  children: ReactNode;
+}
+
+export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const login = async (
+    username: string,
+    password: string
+  ): Promise<LoginResponse> => {
+    const response = await authService.login({ username: username, password });
+    tokenService.setTokens(response.access_token, response.refresh_token);
+    setUser(response.user);
+    return response;
+  };
+
+  const register = async (
+    username: string,
+    password: string,
+    firstname: string,
+    lastname: string,
+    email: string
+  ): Promise<LoginResponse> => {
+    const response = await authService.register({
+      username: username,
+      password: password,
+      firstname: firstname,
+      lastname: lastname,
+      email: email,
+    });
+    tokenService.setTokens(response.access_token, response.refresh_token);
+    setUser(response.user);
+    return response;
+  };
+
+  const logout = async (): Promise<void> => {
+    const refreshToken = tokenService.getRefreshToken();
+    if (refreshToken) {
+      try {
+        await authService.logout(refreshToken);
+      } catch (error) {
+        console.error('Logout failed:', error);
+      }
+    }
+    tokenService.clearTokens();
+    setUser(null);
+  };
+
+  const getValidAccessToken = async (): Promise<string | null> => {
+    let accessToken = tokenService.getAccessToken();
+
+    if (!accessToken || tokenService.isTokenExpired(accessToken)) {
+      const refreshToken = tokenService.getRefreshToken();
+      if (!refreshToken || tokenService.isTokenExpired(refreshToken)) {
+        await logout();
+        return null;
+      }
+
+      try {
+        const response = await authService.refreshToken({
+          refresh_token: refreshToken,
+        });
+        tokenService.setTokens(response.access_token, response.refresh_token);
+        accessToken = response.access_token;
+      } catch (error) {
+        console.error('Failed to refresh access token:', error);
+        await logout();
+        return null;
+      }
+    }
+
+    return accessToken;
+  };
+
+  // Initialize user state
+  useEffect(() => {
+    const initializeAuth = async (): Promise<void> => {
+      try {
+        const token = await getValidAccessToken();
+        if (token) {
+          const currentUser = await authService.getCurrentUser();
+          setUser(currentUser);
+        }
+      } catch (error) {
+        console.error('Failed to initialize auth:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, []);
+
+  const value: AuthContextType = {
+    user,
+    loading,
+    login,
+    register,
+    logout,
+    getValidAccessToken,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+};

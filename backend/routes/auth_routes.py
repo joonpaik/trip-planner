@@ -10,7 +10,7 @@ from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import BaseModel
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import uuid4
 from datetime import datetime, timedelta, timezone
 import os
@@ -56,9 +56,12 @@ class Token(BaseModel):
     access_token: str
     token_type: str
 class UserLoginRequest(BaseModel):
+    username: str 
+    password: str 
+class UserLoginResponse(BaseModel):
+    token: Token
     username: str
-    password: str
-
+    uid: str 
 
 """
     Helper Methods
@@ -181,8 +184,9 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
     Login User API
 """
 # Passing username and password
-@router.post("/login",response_model=Token)
-async def login_user(form_data: Annotated[OAuth2PasswordRequestForm, Depends()], db: db_dependency):
+@router.post("/login",response_model=UserLoginResponse)
+async def login_user(form_data: UserLoginRequest, db: db_dependency):
+    print("Login attempt for user:", form_data.username, form_data.password)
     user = authenticate_user(form_data.username, form_data.password, db)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, 
@@ -190,7 +194,21 @@ async def login_user(form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
 
     access_token = create_access_token(user.username, user.uid, timedelta(minutes=30))
     refresh_token = create_refresh_token(user.username, user.uid, timedelta(days=7), db)
-    return {"access_token": access_token, "token_type": "bearer"}
+    user_model = await get_current_user(access_token)
+
+    print("User authenticated:", user_model)
+
+    token = {
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+
+    userLoginResponse = {
+        "token": token,
+        "username": user.username,
+        "uid": user.uid
+    }
+    return userLoginResponse
 
 """
     Refresh User Access Token

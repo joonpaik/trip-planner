@@ -1,6 +1,6 @@
 const API_BASE_URL = 'http://localhost:8000';
 
-class DatabaseService {
+class RouteService {
   private async request<T>(endpoint: string): Promise<T> {
     const response = await fetch(`${API_BASE_URL}${endpoint}`);
     if (!response.ok) {
@@ -17,4 +17,4 @@ class DatabaseService {
   }
 }
 
-export const databaseService = new DatabaseService();
+export const routeService = new RouteService();
