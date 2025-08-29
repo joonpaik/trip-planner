@@ -58,14 +58,21 @@ export const LoginForm: React.FC = () => {
           navigate('/');
         }
       } else if (currentView === 'register') {
+        // TODO: Email verificaiotn
+        // Send Register Post Request
         console.log('Registering with', formData);
-        await register(
+        const response = await register(
           formData.username,
           formData.password,
           formData.firstname,
           formData.lastname,
           formData.email
         );
+
+        if (response && response.access_token) {
+          console.log('Registration successful', response.user);
+          navigate('/');
+        }
       } else {
         // Handle forgot password logic here
         console.log('Forgot Password for', formData.username);
@@ -184,6 +191,11 @@ export const LoginForm: React.FC = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  handleSubmit(event);
+                }
+              }}
               required
               className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="username or email"
@@ -199,6 +211,11 @@ export const LoginForm: React.FC = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    handleSubmit(event);
+                  }
+                }}
                 required
                 className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="password"
@@ -227,6 +244,11 @@ export const LoginForm: React.FC = () => {
             <br></br>
             <button
               onClick={handleSubmit}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  handleSubmit(event);
+                }
+              }}
               disabled={isLoading}
               className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition duration-300"
             >
@@ -261,6 +283,11 @@ export const LoginForm: React.FC = () => {
               name="email"
               value={formData.email}
               onChange={handleChange}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  handleSubmit(event);
+                }
+              }}
               required
               className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="email"
@@ -279,6 +306,11 @@ export const LoginForm: React.FC = () => {
                   name="firstname"
                   value={formData.firstname}
                   onChange={handleChange}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      handleSubmit(event);
+                    }
+                  }}
                   required
                   className="w-full pl-5 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="first name"
@@ -293,6 +325,11 @@ export const LoginForm: React.FC = () => {
                   name="lastname"
                   value={formData.lastname}
                   onChange={handleChange}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      handleSubmit(event);
+                    }
+                  }}
                   required
                   className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   placeholder="last name"
@@ -310,6 +347,11 @@ export const LoginForm: React.FC = () => {
               name="username"
               value={formData.username}
               onChange={handleChange}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  handleSubmit(event);
+                }
+              }}
               required
               className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="username"
@@ -325,6 +367,11 @@ export const LoginForm: React.FC = () => {
                 name="password"
                 value={formData.password}
                 onChange={handleChange}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    handleSubmit(event);
+                  }
+                }}
                 required
                 className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 placeholder="password"
@@ -346,6 +393,11 @@ export const LoginForm: React.FC = () => {
             <button
               onClick={handleSubmit}
               disabled={isLoading}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  handleSubmit(event);
+                }
+              }}
               className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition duration-300"
             >
               {getButtonText()}
@@ -377,6 +429,11 @@ export const LoginForm: React.FC = () => {
             <input
               type="email"
               name="email"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  handleSubmit(event);
+                }
+              }}
               value={formData.email}
               onChange={handleChange}
               required
@@ -387,6 +444,11 @@ export const LoginForm: React.FC = () => {
             <br></br>
             <button
               onClick={handleSubmit}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter') {
+                  handleSubmit(event);
+                }
+              }}
               disabled={isLoading}
               className="w-full bg-blue-500 text-white py-3 rounded-lg hover:bg-blue-600 transition duration-300"
             >

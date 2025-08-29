@@ -9,7 +9,7 @@ from models.refresh_token_model import RefreshToken
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import ExpiredSignatureError, JWTError, jwt
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Annotated, Any
 from uuid import uuid4
 from datetime import datetime, timedelta, timezone
@@ -49,8 +49,8 @@ db_dependency = Annotated[Session, Depends(get_db)]
 class CreateUserRequest(BaseModel):
     username: str
     email: str
-    first_name: str
-    last_name: str
+    first_name: str = Field(alias="firstname")
+    last_name: str = Field(alias="lastname")
     password: str
 class Token(BaseModel):
     access_token: str
@@ -58,22 +58,40 @@ class Token(BaseModel):
 class UserLoginRequest(BaseModel):
     username: str 
     password: str 
-class UserLoginResponse(BaseModel):
-    token: Token
+class UserModel(BaseModel):
     username: str
-    uid: str 
-
+    uid: str
+class UserLoginResponse(BaseModel):
+    user: UserModel
+    access_token: str
+    token_type: str
 """
     Helper Methods
 """
 # Getting current user from token
-async def get_current_user(token: Annotated[str, Depends(oauth2_bearer)]):
+# TODO: Use this in other APIs that require authentication
+@router.post("/user",response_model=UserModel,status_code=status.HTTP_200_OK)
+async def get_current_user(token: Token, db: db_dependency):
+    print("Received token for user retrieval:", token)
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token.access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        print("Decoded JWT payload:", payload)
         username: str = payload.get("sub")
         uid = payload.get("id")
+        
         if username is None or uid is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
+        
+        # Check if refresh token is expired
+        result = db.query(RefreshToken).filter(
+            (RefreshToken.user_id == uid) & 
+            (RefreshToken.expires_at > datetime.now(timezone.utc)) & 
+            (RefreshToken.is_revoked == False)
+        ).first()
+
+        if not result:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired or invalid")
+
         return {'username': username, 'uid': uid}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
@@ -129,6 +147,7 @@ def create_refresh_token(username: str, user_id: int, expires_delta: timedelta, 
 def verify_refresh_token(token: str, db: Session):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        print("Decoded refresh token payload:", payload)
         token_id = payload.get("id")
         if token_id is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
@@ -150,8 +169,8 @@ def verify_refresh_token(token: str, db: Session):
 """
     Register User API
 """
-@router.post("/register",status_code=status.HTTP_201_CREATED)
-async def create_user(db: db_dependency, create_user_request: CreateUserRequest):
+@router.post("/register",response_model=UserLoginResponse,status_code=status.HTTP_201_CREATED)
+async def create_user(create_user_request: CreateUserRequest, db: db_dependency):
     # Check for existing user
     existing_username = db.query(User).filter(
         (User.username == create_user_request.username)
@@ -179,6 +198,19 @@ async def create_user(db: db_dependency, create_user_request: CreateUserRequest)
     db.add(create_user_model)
     db.commit()
 
+    access_token = create_access_token(create_user_model.username, create_user_model.uid, timedelta(minutes=30))
+    refresh_token = create_refresh_token(create_user_model.username, create_user_model.uid, timedelta(days=1), db)
+    token = Token(access_token=access_token, token_type="bearer")
+    user_model = await get_current_user(token, db=db)
+    print("User created:", user_model)
+
+    userLoginResponse = {
+        "user": user_model,
+        "access_token": access_token,
+        "token_type": "bearer"
+    }
+    return userLoginResponse
+
 
 """
     Login User API
@@ -193,20 +225,18 @@ async def login_user(form_data: UserLoginRequest, db: db_dependency):
                             detail="Invalid username or password")
 
     access_token = create_access_token(user.username, user.uid, timedelta(minutes=30))
-    refresh_token = create_refresh_token(user.username, user.uid, timedelta(days=7), db)
-    user_model = await get_current_user(access_token)
+    refresh_token = create_refresh_token(user.username, user.uid, timedelta(days=1), db)
+    token = Token(access_token=access_token, token_type="bearer")
+
+    user_model = await get_current_user(token, db=db)
 
     print("User authenticated:", user_model)
 
-    token = {
-        "access_token": access_token,
-        "token_type": "bearer"
-    }
 
     userLoginResponse = {
-        "token": token,
-        "username": user.username,
-        "uid": user.uid
+        "user": user_model,
+        "access_token": access_token,
+        "token_type": "bearer"
     }
     return userLoginResponse
 
@@ -228,13 +258,17 @@ async def refresh_access_token(refresh_token: str, db: db_dependency):
     Logout User
 """
 @router.post("/logout",status_code=status.HTTP_200_OK)
-async def logout_user(refresh_token: str, db: db_dependency):
+async def logout(user: UserModel, db: db_dependency):
     # Verify the refresh token
-    token_data = verify_refresh_token(refresh_token, db)
-    if not token_data:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+    print("Revoking user: ", user.username)
 
-    # Revoke the refresh token
-    token_data.is_revoked = True
+    result = db.query(RefreshToken).filter(
+        (RefreshToken.user_id == user.uid)
+    ).update({
+        "is_revoked": True
+    })
     db.commit()
+    if result == 0:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active sessions found")
+
     return {"detail": "Successfully logged out"}

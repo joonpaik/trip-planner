@@ -3,6 +3,7 @@ import '../index.css';
 import Card from '../components/Card';
 import AnimationWrapper from '../components/AnimationWrapper';
 import { routeService } from '../services/routeService';
+import { useAuth } from '../hooks/useAuth';
 
 interface TableData {
   [key: string]: any;
@@ -19,6 +20,7 @@ const Home: React.FC = () => {
   const [userTasks, setUserTasks] = useState<UserTaskCard[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     const fetchAndFormatData = async () => {
@@ -55,7 +57,7 @@ const Home: React.FC = () => {
 
   return (
     <div className="min-h-screen">
-      <h1 className="font-bold text-center">Home Page</h1>
+      <h1 className="font-bold text-center">Welcome, {user?.username}</h1>
       <div className="grid place-items-center">
         <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 gap-4 p-4 w-1/2 border-4 border-black">
           {userTasks

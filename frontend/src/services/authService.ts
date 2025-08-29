@@ -9,6 +9,7 @@ import {
 import { apiService } from './apiService';
 import { API_BASE_URL } from '../utils/constants';
 import axios from 'axios';
+import { access } from 'fs';
 
 export class authService {
   private static readonly ENDPOINTS = {
@@ -68,9 +69,12 @@ export class authService {
     }
   }
 
-  static async getCurrentUser(): Promise<User> {
+  static async getCurrentUser(accessToken: string): Promise<User> {
     try {
-      const response = await apiService.get<User>(this.ENDPOINTS.USER);
+      const response = await apiService.post<User>(this.ENDPOINTS.USER, {
+        access_token: accessToken,
+        token_type: 'bearer',
+      });
       return response.data;
     } catch (error) {
       throw this.handleAuthError(error, 'Failed to fetch profile');

@@ -83,7 +83,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return null;
       }
     }
-
+    console.log('Valid access token:', accessToken);
     return accessToken;
   };
 
@@ -93,7 +93,9 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       try {
         const token = await getValidAccessToken();
         if (token) {
-          const currentUser = await authService.getCurrentUser();
+          console.log('Fetching current user with valid token');
+          const currentUser = await authService.getCurrentUser(token);
+          console.log('Current user fetched:', currentUser);
           setUser(currentUser);
         }
       } catch (error) {
