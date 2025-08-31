@@ -3,7 +3,7 @@ import '../index.css';
 
 const NavBar: React.FC = () => {
   return (
-    <nav className="bg-white/10 backdrop-blur-md">
+    <nav className="bg-white/10 backdrop-blur-md border-black">
       <div className="max-w-6xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <div className="text-2xl font-bold text-white">

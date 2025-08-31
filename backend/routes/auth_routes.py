@@ -55,6 +55,15 @@ class CreateUserRequest(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class AuthTokens(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+    token_type: str
 class UserLoginRequest(BaseModel):
     username: str 
     password: str 
@@ -64,6 +73,7 @@ class UserModel(BaseModel):
 class UserLoginResponse(BaseModel):
     user: UserModel
     access_token: str
+    refresh_token: str
     token_type: str
 """
     Helper Methods
@@ -71,10 +81,10 @@ class UserLoginResponse(BaseModel):
 # Getting current user from token
 # TODO: Use this in other APIs that require authentication
 @router.post("/user",response_model=UserModel,status_code=status.HTTP_200_OK)
-async def get_current_user(token: Token, db: db_dependency):
-    print("Received token for user retrieval:", token)
+async def get_current_user(access_token: Token, db: db_dependency):
+    print("Received token for user retrieval:", access_token)
     try:
-        payload = jwt.decode(token.access_token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(access_token.access_token, SECRET_KEY, algorithms=[ALGORITHM])
         print("Decoded JWT payload:", payload)
         username: str = payload.get("sub")
         uid = payload.get("id")
@@ -99,7 +109,7 @@ async def get_current_user(token: Token, db: db_dependency):
 # Verifying if user exists and if the passwords match (verify())
 def authenticate_user(username: str, password: str, db: Session):
     user = db.query(User).filter(or_(
-        User.username == username,
+        User.username == username.lower(),
         User.email == username
     )).first()
 
@@ -148,19 +158,19 @@ def verify_refresh_token(token: str, db: Session):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         print("Decoded refresh token payload:", payload)
-        token_id = payload.get("id")
-        if token_id is None:
+        uid = payload.get("id")
+        if uid is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
 
         # Check if the refresh token exists in the database
         refresh_token = db.query(RefreshToken).filter(
-            RefreshToken.id == token_id, 
+            RefreshToken.user_id == uid, 
             RefreshToken.is_revoked == False
         ).first()
         if not refresh_token:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
 
-        return refresh_token
+        return {"username": payload.get("sub"), "uid": uid}
     except ExpiredSignatureError:
         return None
     except JWTError:
@@ -172,6 +182,8 @@ def verify_refresh_token(token: str, db: Session):
 @router.post("/register",response_model=UserLoginResponse,status_code=status.HTTP_201_CREATED)
 async def create_user(create_user_request: CreateUserRequest, db: db_dependency):
     # Check for existing user
+    create_user_request.username = create_user_request.username.lower()
+    create_user_request.email = create_user_request.email.lower()
     existing_username = db.query(User).filter(
         (User.username == create_user_request.username)
     ).first()
@@ -207,6 +219,7 @@ async def create_user(create_user_request: CreateUserRequest, db: db_dependency)
     userLoginResponse = {
         "user": user_model,
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer"
     }
     return userLoginResponse
@@ -236,6 +249,7 @@ async def login_user(form_data: UserLoginRequest, db: db_dependency):
     userLoginResponse = {
         "user": user_model,
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer"
     }
     return userLoginResponse
@@ -243,27 +257,40 @@ async def login_user(form_data: UserLoginRequest, db: db_dependency):
 """
     Refresh User Access Token
 """
-@router.post("/refresh",response_model=Token)
-async def refresh_access_token(refresh_token: str, db: db_dependency):
+@router.post("/refresh",response_model=AuthTokens,status_code=status.HTTP_200_OK)
+async def refresh_access_token(refresh_request: RefreshTokenRequest, db: db_dependency):
+    print("Received refresh token:", refresh_request.refresh_token)
     # Verify the refresh token
-    token_data = verify_refresh_token(refresh_token, db)
-    if not token_data:
+    decoded_token = verify_refresh_token(refresh_request.refresh_token, db)
+    if not decoded_token:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
 
     # Create new access token
-    access_token = create_access_token(token_data.username, token_data.uid, timedelta(minutes=30))
-    return {"access_token": access_token, "token_type": "bearer"}
+    access_token = create_access_token(decoded_token['username'], decoded_token['uid'], timedelta(minutes=30))
+    new_refresh_token = create_refresh_token(decoded_token['username'], decoded_token['uid'], timedelta(days=1), db)
+    return {"access_token": access_token, "refresh_token": new_refresh_token, "token_type": "bearer"}
 
 """
     Logout User
 """
 @router.post("/logout",status_code=status.HTTP_200_OK)
-async def logout(user: UserModel, db: db_dependency):
-    # Verify the refresh token
-    print("Revoking user: ", user.username)
+async def logout(token: Token, db: db_dependency):
+    access_token = token.access_token
+
+    # Decode the access token
+    decoded_access_token = verify_access_token(access_token)
+
+    if not decoded_access_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+    
+    # Retrieve user information
+    username = decoded_access_token.get("sub")
+    uid = decoded_access_token.get("id")
+
+    print("Revoking user: ", username)
 
     result = db.query(RefreshToken).filter(
-        (RefreshToken.user_id == user.uid)
+        (RefreshToken.user_id == uid)
     ).update({
         "is_revoked": True
     })

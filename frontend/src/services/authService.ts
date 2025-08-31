@@ -50,7 +50,8 @@ export class authService {
   ): Promise<RefreshTokenResponse> {
     try {
       const response = await apiService.post(authService.ENDPOINTS.REFRESH, {
-        refresh_token: refreshToken,
+        refresh_token: refreshToken.refresh_token,
+        token_type: 'bearer',
       });
       return response.data;
     } catch (error) {
@@ -58,10 +59,11 @@ export class authService {
     }
   }
 
-  static async logout(refreshToken: string): Promise<void> {
+  static async logout(accessToken: string): Promise<void> {
     try {
       const response = await apiService.post(authService.ENDPOINTS.LOGOUT, {
-        refresh_token: refreshToken,
+        access_token: accessToken,
+        token_type: 'bearer',
       });
       return response.data;
     } catch (error) {

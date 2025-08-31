@@ -84,6 +84,7 @@ class ApiService {
             return this.client(originalRequest);
           } catch (refreshError) {
             this.processQueue(refreshError, null);
+            console.error('apiService: Token refresh failed', refreshError);
             tokenService.clearTokens();
 
             // Redirect to login or emit logout event

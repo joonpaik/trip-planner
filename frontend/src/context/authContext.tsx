@@ -49,10 +49,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   };
 
   const logout = async (): Promise<void> => {
-    const refreshToken = tokenService.getRefreshToken();
-    if (refreshToken) {
+    const accessToken = tokenService.getAccessToken();
+    if (accessToken) {
       try {
-        await authService.logout(refreshToken);
+        await authService.logout(accessToken);
       } catch (error) {
         console.error('Logout failed:', error);
       }
@@ -63,15 +63,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const getValidAccessToken = async (): Promise<string | null> => {
     let accessToken = tokenService.getAccessToken();
-
+    console.log('AuthContext: Current access token:', accessToken);
     if (!accessToken || tokenService.isTokenExpired(accessToken)) {
+      console.log(
+        'AuthContext: Current access token:',
+        accessToken,
+        ' missing, attempting to refresh'
+      );
+
       const refreshToken = tokenService.getRefreshToken();
-      if (!refreshToken || tokenService.isTokenExpired(refreshToken)) {
+      if (!refreshToken) {
+        console.warn('No refresh token available, logging out');
+        await logout();
+        return null;
+      } else if (tokenService.isTokenExpired(refreshToken)) {
+        console.warn('Refresh token expired, logging out');
         await logout();
         return null;
       }
 
       try {
+        console.log('Refreshing access token: ', refreshToken);
         const response = await authService.refreshToken({
           refresh_token: refreshToken,
         });

@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import '../index.css';
 import Card from '../components/Card';
+import NavBar from '../components/Navbar';
 import AnimationWrapper from '../components/AnimationWrapper';
 import { routeService } from '../services/routeService';
 import { useAuth } from '../hooks/useAuth';
-
 interface TableData {
   [key: string]: any;
 }
@@ -56,10 +56,25 @@ const Home: React.FC = () => {
   }, []);
 
   return (
-    <div className="min-h-screen">
+    <div
+      className="min-h-screen items-center p-4"
+      style={{ background: 'linear-gradient(#A7E3E0, #14f2e7ff)' }}
+    >
+      <NavBar />
+
       <h1 className="font-bold text-center">Welcome, {user?.username}</h1>
-      <div className="grid place-items-center">
-        <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 gap-4 p-4 w-1/2 border-4 border-black">
+
+      <div className="grid border-4 border-black m-4 p-4 rounded-xl grid-cols-[1fr,3fr,1fr] gap-4">
+        <div className="bg-white rounded-xl shadow-lg text-center">
+          <h1 className="font-bold text-center">My Trips</h1>
+          <h1 className="font-bold text-center">Calendar</h1>
+          <h1 className="font-bold text-center">Expenses</h1>
+          <h1 className="font-bold text-center">Todo</h1>
+        </div>
+        <div className="bg-white rounded-xl shadow-lg text-center"> main</div>
+        <div className="bg-white rounded-xl shadow-lg text-center"> main</div>
+
+        {/* <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 gap-4 p-4 w-1/2 border-4 border-black">
           {userTasks
             .filter((item, index) => index < 3)
             .map((card, index) => (
@@ -71,7 +86,7 @@ const Home: React.FC = () => {
                 />
               </AnimationWrapper>
             ))}
-        </div>
+        </div> */}
       </div>
     </div>
   );

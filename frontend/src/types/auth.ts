@@ -13,7 +13,6 @@ export interface AuthTokens {
   token_type: 'bearer';
   expires_in: number;
 }
-
 export interface LoginRequest {
   username: string;
   password: string;
