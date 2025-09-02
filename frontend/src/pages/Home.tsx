@@ -5,23 +5,76 @@ import NavBar from '../components/Navbar';
 import AnimationWrapper from '../components/AnimationWrapper';
 import { routeService } from '../services/routeService';
 import { useAuth } from '../hooks/useAuth';
+import { TaskDropdown } from '../components/TaskDropdown';
+import {
+  Menu,
+  X,
+  MapPin,
+  Calendar,
+  DollarSign,
+  CheckSquare,
+  Plane,
+  TrendingUp,
+  Clock,
+  Globe,
+} from 'lucide-react';
 interface TableData {
   [key: string]: any;
 }
 
-interface UserTaskCard {
+export interface UserTaskCard {
   title: string;
   description: string;
   status: number;
-  due_date: string;
+  dueDate: string;
 }
 
 const Home: React.FC = () => {
+  const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
   const [userTasks, setUserTasks] = useState<UserTaskCard[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Task Filter States
+  const [tripFilter, setTripFilter] = useState<string | null>(null);
+  const [peopleFilter, setPeopleFilter] = useState<string | null>(null);
+  const [dueDateFilter, setDueDateFilter] = useState<string | null>(null);
+
+  // Auth Context
   const { user } = useAuth();
 
+  const navigationItems = [
+    {
+      title: 'My Trips',
+      icon: MapPin,
+      color: 'text-blue-500',
+      bgColor: 'bg-blue-50',
+    },
+    {
+      title: 'Calendar',
+      icon: Calendar,
+      color: 'text-green-500',
+      bgColor: 'bg-green-50',
+    },
+    {
+      title: 'Expenses',
+      icon: DollarSign,
+      color: 'text-purple-500',
+      bgColor: 'bg-purple-50',
+    },
+    {
+      title: 'Todo',
+      icon: CheckSquare,
+      color: 'text-orange-500',
+      bgColor: 'bg-orange-50',
+    },
+  ];
+
+  // Filter handle tasks based on selected filters
+  const handleTitleFilerSelection = (title: string | null) => {
+    setTripFilter(title);
+    console.log('Selected Title Filter:', title);
+  };
   useEffect(() => {
     const fetchAndFormatData = async () => {
       try {
@@ -38,7 +91,7 @@ const Home: React.FC = () => {
           title: item.name || item.title || 'Default Title',
           description: item.description || 'No description available',
           status: item.status || 0,
-          due_date: item.due_date || 'No due date',
+          dueDate: item.dueDate || 'No due date',
         }));
 
         setUserTasks(formattedData);
@@ -53,7 +106,7 @@ const Home: React.FC = () => {
     };
 
     fetchAndFormatData();
-  }, []);
+  }, [handleTitleFilerSelection]);
 
   return (
     <div
@@ -61,35 +114,195 @@ const Home: React.FC = () => {
       style={{ background: 'linear-gradient(#A7E3E0, #14f2e7ff)' }}
     >
       <NavBar />
+      <main className="p-4 lg:p-8 space-y-8 border-4 border-black rounded-xl">
+        {/* Upcoming Trip Hero Section bg-white rounded-xl shadow-lg */}
+        <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-3xl shadow-xl overflow-hidden border-4 border-black">
+          <div className="relative p-6 lg:p-8">
+            <div className="relative z-10">
+              <div className="flex items-center space-x-2 mb-4 justify-between">
+                <div className="flex space-x-2">
+                  <div className="px-3 py-1 bg-white bg-opacity-20 rounded-full">
+                    <span className="text-white text-sm font-medium">
+                      Next Trip
+                    </span>
+                  </div>
+                  <div className="px-3 py-1 bg-green-500 bg-opacity-90 rounded-full">
+                    <span className="text-white text-xs font-semibold">
+                      5 DAYS LEFT
+                    </span>
+                  </div>
+                </div>
 
-      <h1 className="font-bold text-center">Welcome, {user?.username}</h1>
+                <div className="px-3 py-1 bg-white bg-opacity-20 rounded-full">
+                  <span className="text-white text-sm font-medium flex items-center space-x-1">
+                    <Clock className="w-4 h-4" />
+                    <span>2h 30m</span>
+                  </span>
+                </div>
+              </div>
 
-      <div className="grid border-4 border-black m-4 p-4 rounded-xl grid-cols-[1fr,3fr,1fr] gap-4">
-        <div className="bg-white rounded-xl shadow-lg text-center">
-          <h1 className="font-bold text-center">My Trips</h1>
-          <h1 className="font-bold text-center">Calendar</h1>
-          <h1 className="font-bold text-center">Expenses</h1>
-          <h1 className="font-bold text-center">Todo</h1>
+              <h2 className="text-3xl lg:text-4xl font-bold text-white mb-2">
+                Upcoming Trip Here
+              </h2>
+              <p className="text-blue-100 text-lg mb-6">Date Range</p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-6">
+                <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <Plane className="w-5 h-5 text-blue-200" />
+                    <span className="text-blue-100 text-sm">Flight Info</span>
+                  </div>
+                  <p className="text-white font-semibold">link to flight</p>
+                  <p className="text-blue-200 text-sm">summary</p>
+                </div>
+
+                <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <MapPin className="w-5 h-5 text-blue-200" />
+                    <span className="text-blue-100 text-sm">
+                      Accomdation Info
+                    </span>
+                  </div>
+                  <p className="text-white font-semibold">
+                    link to accomdation
+                  </p>
+                  <p className="text-blue-200 text-sm">address maybe?</p>
+                </div>
+
+                <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <DollarSign className="w-5 h-5 text-blue-200" />
+                    <span className="text-blue-100 text-sm">Budget Info</span>
+                  </div>
+                  <p className="text-white font-semibold">$3,200</p>
+                  <p className="text-blue-200 text-sm">yay</p>
+                </div>
+
+                <div className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <DollarSign className="w-5 h-5 text-blue-200" />
+                    <span className="text-blue-100 text-sm">
+                      Outstanding Tasks
+                    </span>
+                  </div>
+                  <p className="text-white font-semibold">how many remaining</p>
+                  <p className="text-blue-200 text-sm">yay</p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-3">
+                <button className="bg-white text-blue-700 px-6 py-3 rounded-xl font-semibold hover:bg-blue-50 transition-all duration-200 flex items-center space-x-2">
+                  <span>View Itinerary</span>
+                </button>
+                <button className="bg-white bg-opacity-20 backdrop-blur-sm text-white px-6 py-3 rounded-xl font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2">
+                  <CheckSquare className="w-4 h-4" />
+                  <span>Checklist</span>
+                </button>
+                <button className="bg-white bg-opacity-20 backdrop-blur-sm text-white px-6 py-3 rounded-xl font-semibold hover:bg-opacity-30 transition-all duration-200 flex items-center space-x-2">
+                  <Calendar className="w-4 h-4" />
+                  <span>Add to Calendar</span>
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="bg-white rounded-xl shadow-lg text-center"> main</div>
-        <div className="bg-white rounded-xl shadow-lg text-center"> main</div>
-
-        {/* <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 gap-4 p-4 w-1/2 border-4 border-black">
-          {userTasks
-            .filter((item, index) => index < 3)
-            .map((card, index) => (
-              <AnimationWrapper key={index} delay={(index + 3) * 150}>
-                <Card
-                  title={card.title}
-                  description={card.description}
-                  bgColor="bg-white"
-                />
-              </AnimationWrapper>
-            ))}
-        </div> */}
-      </div>
+        <div className="bg-white rounded-xl shadow-lg  p-6 overflow-hidden">
+          <h1 className="font-bold text-center">Tasks Remaining</h1>
+          <br />
+          <br />
+          <div className="grid grid-cols-[1fr,2fr] gap-4 mb-6">
+            <div>
+              <div className="bg-white rounded-xl shadow-lg text-center h-full justify-center border-4 border-black">
+                <div className="justify-center">
+                  <h1 className="text-lg font-bold text-center"> Filter</h1>
+                </div>
+                <div className="p-4 text-left">
+                  <TaskDropdown
+                    tasks={userTasks}
+                    placeholder="Filter by Trip"
+                    menuType="title"
+                    onSelectionChange={handleTitleFilerSelection}
+                  />
+                </div>
+                <div className="p-4 text-left">
+                  <TaskDropdown
+                    tasks={userTasks}
+                    placeholder="Filter by Due Date"
+                    menuType="dueDate"
+                    onSelectionChange={handleTitleFilerSelection}
+                  />
+                </div>
+                <div className="p-4 text-left">
+                  <TaskDropdown
+                    tasks={userTasks}
+                    placeholder="Filter by Status"
+                    menuType="status"
+                    onSelectionChange={handleTitleFilerSelection}
+                  />
+                </div>
+                <div className="p-4 text-left">
+                  <TaskDropdown
+                    tasks={userTasks}
+                    placeholder="Filter by People"
+                    menuType="title"
+                    onSelectionChange={handleTitleFilerSelection}
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="gap-4 p-4 border-4 border-black">
+              <h1 className="font-bold text-center"> Filtered Tasks</h1>
+              {userTasks
+                .filter((item, index) => index < 3)
+                .map((card, index) => (
+                  <AnimationWrapper key={index} delay={(index + 3) * 150}>
+                    <Card
+                      title={card.title}
+                      description={card.description}
+                      bgColor="bg-white"
+                    />
+                  </AnimationWrapper>
+                ))}
+            </div>
+          </div>
+        </div>
+      </main>
     </div>
   );
 };
 
 export default Home;
+
+//  <div
+//       className="min-h-screen items-center p-4"
+//       style={{ background: 'linear-gradient(#A7E3E0, #14f2e7ff)' }}
+//     >
+//       <NavBar />
+
+//       <h1 className="font-bold text-center">Welcome, {user?.username}</h1>
+
+//       <div className="grid border-4 border-black m-4 p-4 rounded-xl grid-cols-[1fr,3fr,1fr] gap-4">
+//         <div className="bg-white rounded-xl shadow-lg text-center">
+//           <h1 className="font-bold text-center">My Trips</h1>
+//           <h1 className="font-bold text-center">Calendar</h1>
+//           <h1 className="font-bold text-center">Expenses</h1>
+//           <h1 className="font-bold text-center">Todo</h1>
+//         </div>
+//         <div className="bg-white rounded-xl shadow-lg text-center"> main</div>
+//         <div className="bg-white rounded-xl shadow-lg text-center"> main</div>
+
+// {/* <div className="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 gap-4 p-4 w-1/2 border-4 border-black">
+//   {userTasks
+//     .filter((item, index) => index < 3)
+//     .map((card, index) => (
+//       <AnimationWrapper key={index} delay={(index + 3) * 150}>
+//         <Card
+//           title={card.title}
+//           description={card.description}
+//           bgColor="bg-white"
+//         />
+//       </AnimationWrapper>
+//     ))}
+// </div> */}
+//       </div>
+//     </div>

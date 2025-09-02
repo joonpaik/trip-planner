@@ -3,8 +3,8 @@ import '../index.css';
 
 const NavBar: React.FC = () => {
   return (
-    <nav className="bg-white/10 backdrop-blur-md border-black">
-      <div className="max-w-6xl mx-auto px-4">
+    <nav className="bg-white/10 backdrop-blur-md">
+      <div className="mx-auto px-4">
         <div className="flex justify-between items-center h-16">
           <div className="text-2xl font-bold text-white">
             <a href="/">YourBrand</a>
@@ -15,19 +15,25 @@ const NavBar: React.FC = () => {
               href="/"
               className="text-white/90 hover:text-white transition-colors"
             >
-              Home
+              My Trips
             </a>
             <a
               href="/about"
               className="text-white/90 hover:text-white transition-colors"
             >
-              About
+              Calendar
             </a>
             <a
               href="/contact"
               className="text-white/90 hover:text-white transition-colors"
             >
-              Contact
+              Expenses
+            </a>
+            <a
+              href="/contact"
+              className="text-white/90 hover:text-white transition-colors"
+            >
+              Todo
             </a>
           </div>
         </div>
