@@ -13,6 +13,7 @@ interface TaskDropdownProps {
   placeholder?: string;
   menuType: string;
   onSelectionChange?: (task: string | null) => void;
+  onStateChange?: (state: 'asc' | 'desc') => void;
 }
 // There are 4 filters to cover: by title, due date, status, and people assigned
 // The purpose of each filter to narrow down the tasks displayed in the task list
@@ -23,6 +24,7 @@ export const TaskDropdown: React.FC<TaskDropdownProps> = ({
   placeholder = 'Select a task',
   menuType,
   onSelectionChange,
+  onStateChange,
 }) => {
   const MENU_TYPE = {
     TITLE: 'title',
@@ -32,20 +34,27 @@ export const TaskDropdown: React.FC<TaskDropdownProps> = ({
   } as const;
   const [selectedTask, setSelectedTask] = useState<UserTaskCard | null>(null);
   const [isOpen, setIsOpen] = useState<boolean>(false);
+  const [currentState, setCurrentState] = useState<'asc' | 'desc'>('asc');
 
   const handleSelect = (task: UserTaskCard) => {
     setSelectedTask(task);
     setIsOpen(false);
-    if (menuType === MENU_TYPE.TITLE) {
-      onSelectionChange?.(task.title);
-    } else if (menuType === MENU_TYPE.DUEDATE) {
-      onSelectionChange?.(task.dueDate);
-    } else if (menuType === MENU_TYPE.STATUS) {
-      onSelectionChange?.(task.status.toString());
-    } else if (menuType === MENU_TYPE.PEOPLE) {
-      // finsh this part later
-      onSelectionChange?.(task.description);
-    }
+    // if (menuType === MENU_TYPE.TITLE) {
+    //   onSelectionChange?.(task.title);
+    // } else if (menuType === MENU_TYPE.DUEDATE) {
+    //   onSelectionChange?.(task.dueDate);
+    // } else if (menuType === MENU_TYPE.STATUS) {
+    //   onSelectionChange?.(task.status.toString());
+    // } else if (menuType === MENU_TYPE.PEOPLE) {
+    //   // finsh this part later
+    //   onSelectionChange?.(task.description);
+    // }
+  };
+
+  const handleStateToggle = () => {
+    const newState = currentState === 'asc' ? 'desc' : 'asc';
+    setCurrentState(newState);
+    onStateChange?.(newState);
   };
 
   const clearSelection = () => {
@@ -64,31 +73,31 @@ export const TaskDropdown: React.FC<TaskDropdownProps> = ({
   };
 
   // Check if task is overdue
-  const isOverdue = (dueDate: string): boolean => {
-    return new Date(dueDate) < new Date();
+  const isOverdue = (deadline: Date): boolean => {
+    return new Date(deadline) < new Date();
   };
 
   return (
-    <div className="relative inline-block w-80">
+    <div className="relative inline-block w-80 flex">
       {/* Dropdown Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-4 py-3 text-left bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex justify-between items-center"
+        className="w-full px-4 py-3 text-left bg-white border border-gray-300 rounded-l-md shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex justify-between items-center"
       >
         <div className="flex-1 min-w-0">
           {selectedTask ? (
             <div>
               <div className="font-medium text-gray-900 truncate">
-                {selectedTask.title}
+                {/* {selectedTask.title} */}
               </div>
               <div
                 className={`text-sm truncate ${
-                  isOverdue(selectedTask.dueDate)
+                  isOverdue(selectedTask.deadline)
                     ? 'text-red-600'
                     : 'text-gray-500'
                 }`}
               >
-                Due: {formatDate(selectedTask.dueDate)}
+                Due: {selectedTask.deadline.toDateString()}
               </div>
             </div>
           ) : (
@@ -136,6 +145,62 @@ export const TaskDropdown: React.FC<TaskDropdownProps> = ({
           </svg>
         </div>
       </button>
+      {/* Single Toggle State Button */}
+      {/* <button
+        onClick={handleStateToggle}
+        className={`px-4 py-3 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 rounded-r-md ${
+          currentState === 'asc'
+            ? 'bg-green-500 text-white hover:bg-green-600'
+            : currentState === 'desc'
+              ? 'bg-red-500 text-white hover:bg-red-600'
+              : 'bg-gray-50 text-gray-600 hover:bg-gray-100'
+        }`}
+        title={`Toggle State (Currently: ${currentState || 'None'})`}
+      >
+        {currentState === 'asc' ? (
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M5 15l7-7 7 7"
+            />
+          </svg>
+        ) : currentState === 'desc' ? (
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M19 9l-7 7-7 7"
+            />
+          </svg>
+        ) : (
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M8 9l4-4 4 4m0 6l-4 4-4-4"
+            />
+          </svg>
+        )}
+      </button> */}
 
       {/* Dropdown Menu */}
       {isOpen && (
@@ -148,11 +213,11 @@ export const TaskDropdown: React.FC<TaskDropdownProps> = ({
             <div className="py-1">
               {tasks.map((task, index) => (
                 <button
-                  key={`${task.title}-${index}`}
+                  key={`${task.tripTitle}-${index}`}
                   onClick={() => handleSelect(task)}
                   className={`w-full px-4 py-3 text-left hover:bg-blue-50 focus:outline-none focus:bg-blue-50 border-b border-gray-100 last:border-b-0 ${
-                    selectedTask?.title === task.title &&
-                    selectedTask?.dueDate === task.dueDate
+                    selectedTask?.tripTitle === task.tripTitle &&
+                    selectedTask?.deadline === task.deadline
                       ? 'bg-blue-100'
                       : ''
                   }`}
@@ -160,7 +225,7 @@ export const TaskDropdown: React.FC<TaskDropdownProps> = ({
                   <div className="flex justify-between items-start">
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 truncate">
-                        {task.title}
+                        {task.tripTitle}
                       </div>
                     </div>
                   </div>

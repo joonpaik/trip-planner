@@ -2,11 +2,11 @@ from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import socketio
-from routes import auth_routes
+from routes import auth_routes, trip_routes
 from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal, get_db
 from models import user_tasks_model
-from routes import posts, users, messages, user_tasks_routes
+from routes import user_tasks_routes
 import os
 from routes.auth_routes import get_current_user
 from typing import Annotated, Callable
@@ -22,7 +22,7 @@ app = FastAPI(title="Family Social Network", version="1.0.0")
 @app.middleware("http")
 async def log_requests(request: Request, call_next: Callable):
     # Only log specific endpoints to avoid spam
-    if request.url.path.startswith("/auth/"):
+    if request.url.path.startswith("/trip/"):
         print(f"\n🔍 === REQUEST DEBUG for {request.url.path} ===")
         print(f"Method: {request.method}")
         print(f"Headers: {dict(request.headers)}")
@@ -81,6 +81,8 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 # Include routers
 app.include_router(user_tasks_routes.router)
 app.include_router(auth_routes.router, tags=["Authentication"])
+app.include_router(trip_routes.router, tags=["Trip"])
+
 # app.include_router(posts.router, prefix="/posts", tags=["Posts"])
 # app.include_router(users.router, prefix="/users", tags=["Users"])
 # app.include_router(messages.router, prefix="/messages", tags=["Messages"])

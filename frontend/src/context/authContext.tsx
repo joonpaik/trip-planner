@@ -63,14 +63,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const getValidAccessToken = async (): Promise<string | null> => {
     let accessToken = tokenService.getAccessToken();
-    console.log('AuthContext: Current access token:', accessToken);
     if (!accessToken || tokenService.isTokenExpired(accessToken)) {
-      console.log(
-        'AuthContext: Current access token:',
-        accessToken,
-        ' missing, attempting to refresh'
-      );
-
       const refreshToken = tokenService.getRefreshToken();
       if (!refreshToken) {
         console.warn('No refresh token available, logging out');
@@ -83,7 +76,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       try {
-        console.log('Refreshing access token: ', refreshToken);
         const response = await authService.refreshToken({
           refresh_token: refreshToken,
         });
@@ -95,7 +87,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return null;
       }
     }
-    console.log('Valid access token:', accessToken);
     return accessToken;
   };
 

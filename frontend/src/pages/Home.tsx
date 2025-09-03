@@ -4,8 +4,13 @@ import Card from '../components/Card';
 import NavBar from '../components/Navbar';
 import AnimationWrapper from '../components/AnimationWrapper';
 import { routeService } from '../services/routeService';
+import { tripService } from '../services/tripService';
 import { useAuth } from '../hooks/useAuth';
 import { TaskDropdown } from '../components/TaskDropdown';
+import {
+  FetchFilteredTasksRequest,
+  FetchFilteredTasksResponse,
+} from '../types/trips';
 import {
   Menu,
   X,
@@ -23,10 +28,12 @@ interface TableData {
 }
 
 export interface UserTaskCard {
-  title: string;
+  taskTitle: string;
+  tripTitle?: string;
   description: string;
   status: number;
-  dueDate: string;
+  deadline: Date;
+  people: string[];
 }
 
 const Home: React.FC = () => {
@@ -82,18 +89,35 @@ const Home: React.FC = () => {
         setError('');
 
         // Call your API
-        const rawData: TableData[] =
-          (await routeService.getUserTasks()) as unknown as TableData[];
+        const defaultRequest: FetchFilteredTasksRequest = {
+          tripFilter: null,
+          peopleFilter: [],
+          dueDateFilter: null,
+          statusFilter: null,
+          uid: user?.uid || '',
+        };
+        const rawData = (await tripService.fetchFilteredTasks(
+          defaultRequest
+        )) as unknown as FetchFilteredTasksResponse;
 
+        const tableData: TableData[] =
+          rawData.filteredTasks as unknown as TableData[];
+        console.log('Table Data:', tableData);
         // Format the data for your Card components
-        const formattedData: UserTaskCard[] = rawData.map((item, index) => ({
-          id: item.id || index.toString(),
-          title: item.name || item.title || 'Default Title',
-          description: item.description || 'No description available',
-          status: item.status || 0,
-          dueDate: item.dueDate || 'No due date',
-        }));
+        const formattedData: UserTaskCard[] = new Array<UserTaskCard>();
+        tableData.forEach((item: any) => {
+          const task: UserTaskCard = {
+            taskTitle: item.taskTitle,
+            tripTitle: item.tripTitle,
+            description: item.taskDescription,
+            status: item.taskStatus,
+            deadline: item.taskDeadline,
+            people: [], // Assuming people data is not available in the current response
+          };
+          formattedData.push(task);
+        });
 
+        console.log('Formatted Data:', formattedData);
         setUserTasks(formattedData);
       } catch (err) {
         const errorMessage =
@@ -106,7 +130,7 @@ const Home: React.FC = () => {
     };
 
     fetchAndFormatData();
-  }, [handleTitleFilerSelection]);
+  }, []);
 
   return (
     <div
@@ -210,7 +234,7 @@ const Home: React.FC = () => {
           <h1 className="font-bold text-center">Tasks Remaining</h1>
           <br />
           <br />
-          <div className="grid grid-cols-[1fr,2fr] gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-[1fr,2fr] gap-4 mb-6">
             <div>
               <div className="bg-white rounded-xl shadow-lg text-center h-full justify-center border-4 border-black">
                 <div className="justify-center">
@@ -250,19 +274,23 @@ const Home: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="gap-4 p-4 border-4 border-black">
+            <div className=" gap-4 p-4 border-4 border-black">
               <h1 className="font-bold text-center"> Filtered Tasks</h1>
-              {userTasks
-                .filter((item, index) => index < 3)
-                .map((card, index) => (
-                  <AnimationWrapper key={index} delay={(index + 3) * 150}>
-                    <Card
-                      title={card.title}
-                      description={card.description}
-                      bgColor="bg-white"
-                    />
-                  </AnimationWrapper>
-                ))}
+              <div className="grid grid-cols-1 gap-4 border-4 border-black">
+                {userTasks
+                  .filter((item, index) => index < 3)
+                  .map((card, index) => (
+                    <AnimationWrapper key={index} delay={(index + 3) * 150}>
+                      <Card
+                        taskTitle={card.taskTitle}
+                        description={card.description}
+                        bgColor="bg-white"
+                        tripTitle={card.tripTitle}
+                        deadline={card.deadline}
+                      />
+                    </AnimationWrapper>
+                  ))}
+              </div>
             </div>
           </div>
         </div>

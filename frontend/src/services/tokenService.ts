@@ -22,13 +22,13 @@ class TokenService implements TokenStorage {
 
   getAccessToken(): string | null {
     try {
-      console.log(
-        'tokenService: Getting access token:' +
-          localStorage.getItem(TokenService.TOKEN_KEY.ACCESS_TOKEN)
-      );
-      console.log(
-        'tokenService: Getting access token:' + localStorage.getItem('dummy')
-      );
+      // console.log(
+      //   'tokenService: Getting access token:' +
+      //     localStorage.getItem(TokenService.TOKEN_KEY.ACCESS_TOKEN)
+      // );
+      // console.log(
+      //   'tokenService: Getting access token:' + localStorage.getItem('dummy')
+      // );
       return localStorage.getItem(TokenService.TOKEN_KEY.ACCESS_TOKEN);
     } catch (error) {
       console.error('Error getting access token:', error);
@@ -38,10 +38,10 @@ class TokenService implements TokenStorage {
 
   getRefreshToken(): string | null {
     try {
-      console.log(
-        'tokenService: Getting refresh token:' +
-          localStorage.getItem(TokenService.TOKEN_KEY.REFRESH_TOKEN)
-      );
+      // console.log(
+      //   'tokenService: Getting refresh token:' +
+      //     localStorage.getItem(TokenService.TOKEN_KEY.REFRESH_TOKEN)
+      // );
       return localStorage.getItem(TokenService.TOKEN_KEY.REFRESH_TOKEN);
     } catch (error) {
       console.error('Error getting refresh token:', error);
@@ -55,12 +55,12 @@ class TokenService implements TokenStorage {
       localStorage.setItem(TokenService.TOKEN_KEY.REFRESH_TOKEN, refreshToken);
       localStorage.setItem('dummy', 'just to trigger storage event');
 
-      console.log(
-        'tokenService: Set refresh token:' +
-          localStorage.getItem(TokenService.TOKEN_KEY.REFRESH_TOKEN),
-        'access token:' +
-          localStorage.getItem(TokenService.TOKEN_KEY.ACCESS_TOKEN)
-      );
+      // console.log(
+      //   'tokenService: Set refresh token:' +
+      //     localStorage.getItem(TokenService.TOKEN_KEY.REFRESH_TOKEN),
+      //   'access token:' +
+      //     localStorage.getItem(TokenService.TOKEN_KEY.ACCESS_TOKEN)
+      // );
     } catch (error) {
       console.error('Error setting tokens:', error);
     }
@@ -89,7 +89,7 @@ class TokenService implements TokenStorage {
       }
 
       const decoded = JSON.parse(atob(payload)) as JWTPayload;
-      console.log('Decoded token payload:', decoded);
+      // console.log('Decoded token payload:', decoded);
       return decoded.exp * 1000 < Date.now();
     } catch (error) {
       console.error('Error checking token expiration:', error);
