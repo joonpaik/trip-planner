@@ -1,42 +1,25 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { UserTaskCard } from '../pages/Home';
+import { format } from 'path';
+import React, { useState, useRef, useEffect } from 'react';
 
-// Define the task object type
-interface Task {
-  taskName: string;
-  dueDate: string;
-}
-
-// Define component props
-interface FilterDropdownProps {
-  options: string[];
-  placeholder?: string;
+interface MultiSelectDropdownProps {
+  options: Map<string, string>;
+  selectedOptions: string[];
   menuType: string;
-  onSelectionChange?: (task: string | null) => void;
-  onStateChange?: (state: 'asc' | 'desc') => void;
+  onSelectionChange: (selected: string[]) => void;
+  placeholder?: string;
 }
-// There are 4 filters to cover: by title, due date, status, and people assigned
-// The purpose of each filter to narrow down the tasks displayed in the task list
-// returns the selected filter to the parent component
-// Task dropdown component
-export const FilterDropdown: React.FC<FilterDropdownProps> = ({
+
+export const MultiSelectDropdown: React.FC<MultiSelectDropdownProps> = ({
   options,
-  placeholder = 'Select a task',
+  selectedOptions,
   menuType,
   onSelectionChange,
-  onStateChange,
+  placeholder = 'Select options...',
 }) => {
-  const MENU_TYPE = {
-    TITLE: 'title',
-    DUEDATE: 'dueDate',
-    STATUS: 'status',
-    PEOPLE: 'people',
-  } as const;
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const [currentState, setCurrentState] = useState<'asc' | 'desc'>('asc');
+  const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
+  // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (
@@ -52,50 +35,24 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
   }, []);
 
   const handleSelect = (option: string) => {
-    setSelectedOption(option);
-    setIsOpen(false);
-    onSelectionChange?.(option);
-  };
-
-  const handleStateToggle = () => {
-    const newState = currentState === 'asc' ? 'desc' : 'asc';
-    setCurrentState(newState);
-    onStateChange?.(newState);
+    console.log('Option selected:', option);
+    if (selectedOptions.includes(option)) {
+      onSelectionChange(selectedOptions.filter((item) => item !== option));
+    } else {
+      onSelectionChange([...selectedOptions, option]);
+    }
   };
 
   const clearSelection = (e: React.MouseEvent) => {
-    setSelectedOption(null);
     e.stopPropagation();
-    onSelectionChange?.(null);
+    onSelectionChange([]);
   };
 
-  // Format date for display
-  const formatDate = (dateString: string): string => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric',
-    });
-  };
-
-  const formatOption = (option: string | null): string => {
-    if (option === null) return '';
-    if (menuType === MENU_TYPE.DUEDATE) {
-      return formatDate(option);
-    } else if (menuType === MENU_TYPE.STATUS) {
-      if (option === '-1') return 'Past Due';
-      if (option === '0') return 'Not Started';
-      if (option === '1') return 'In Progress';
-      if (option === '2') return 'Completed';
-      return option;
-    }
-    return option;
-  };
-
-  // Check if task is overdue
-  const isOverdue = (deadline: Date): boolean => {
-    return new Date(deadline) < new Date();
+  const getDisplayText = () => {
+    if (selectedOptions.length === 0) return placeholder;
+    if (selectedOptions.length === 1)
+      return options.get(selectedOptions[0]) || '';
+    return `${selectedOptions.length} items selected`;
   };
 
   return (
@@ -105,13 +62,13 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
         className="inline-flex items-center justify-between w-full rounded-lg border border-gray-300 shadow-sm px-4 py-2 bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 cursor-pointer transition-all duration-200"
       >
         <span
-          className={`truncate ${selectedOption ? 'text-gray-900' : 'text-gray-500'}`}
+          className={`truncate ${selectedOptions.length > 0 ? 'text-gray-900' : 'text-gray-500'}`}
         >
-          {formatOption(selectedOption) || placeholder}
+          {getDisplayText()}
         </span>
 
         <div className="flex items-center ml-3">
-          {selectedOption ? (
+          {selectedOptions.length > 0 ? (
             <button
               onClick={clearSelection}
               className="text-gray-400 hover:text-red-500 p-1 rounded-full hover:bg-red-50 transition-all duration-200"
@@ -146,17 +103,30 @@ export const FilterDropdown: React.FC<FilterDropdownProps> = ({
       {isOpen && (
         <div className="absolute left-0 right-0 mt-1 rounded-lg shadow-lg bg-white ring-1 ring-black ring-opacity-5 z-10 animate-in fade-in slide-in-from-top-2 duration-200">
           <div className="py-1 max-h-60 overflow-y-auto">
-            {options.map((option, index) => (
+            {Array.from(options.entries()).map(([key, value], index) => (
               <button
-                key={index}
-                onClick={() => handleSelect(option)}
-                className={`block w-full text-left px-4 py-2 text-sm transition-colors duration-150 ${
-                  selectedOption === option
+                key={key} // Use key instead of index for better React performance
+                onClick={() => handleSelect(key)} // Assuming you want to select by key
+                className={`flex items-center justify-between w-full text-left px-4 py-2 text-sm transition-colors duration-150 ${
+                  selectedOptions.includes(key)
                     ? 'bg-blue-50 text-blue-700 font-medium'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
               >
-                {formatOption(option)}
+                <span>{value}</span> {/* Display the key */}
+                {selectedOptions.includes(key) && (
+                  <svg
+                    className="w-4 h-4 text-blue-600"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                )}
               </button>
             ))}
           </div>

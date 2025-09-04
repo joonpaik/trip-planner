@@ -37,13 +37,17 @@ class FetchFilteredTasksRequest(BaseModel):
     due_date_filter: str
     people_filter: list[str]
 
-class User(BaseModel):
+class FetchTaskCollaboratorsResquest(BaseModel):
+    uid: str
+class TaskCollaborator(BaseModel):
     uid: str
     email: str
     username: str
     first_name: str 
     last_name: str
 
+class FetchTaskCollaboratorsResponse(BaseModel):
+    collaborators: list[TaskCollaborator]
 class FilteredTask(BaseModel):
     task_title: str
     task_description: str
@@ -61,7 +65,7 @@ class FetchFilteredTasksResponse(BaseModel):
 """
     Fetch Filtered Trips-Users-Tasks Junction
 """
-@router.post("/fetch/fitered-tasks",response_model=FetchFilteredTasksResponse,status_code=status.HTTP_200_OK)
+@router.post("/fetch/filtered-tasks",response_model=FetchFilteredTasksResponse,status_code=status.HTTP_200_OK)
 async def fetch_filtered_tasks(request: FetchFilteredTasksRequest, db: db_dependency):
     if not request:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request")
@@ -146,3 +150,60 @@ async def fetch_filtered_tasks(request: FetchFilteredTasksRequest, db: db_depend
         filtered_tasks.append(task)
 
     return fetch_filtered_tasks_response(filtered_trips=filtered_tasks)
+
+"""
+    Fetch Filtered Task Collaborators Trips-Users-Tasks Junction
+"""
+@router.post("/fetch/filtered-task-collaborators",response_model=FetchTaskCollaboratorsResponse, status_code=status.HTTP_200_OK)
+async def fetch_filtered_task_collaborators(request: FetchTaskCollaboratorsResquest, db: db_dependency):
+    if not request:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request")
+    print("Fetch Filtered Task Collaborators Request:", request)
+    # Build the base query
+    query = """SELECT DISTINCT 
+                    utt.task_id, 
+                    u.*
+                FROM users u
+                    JOIN user_trip_task_junction utt ON u.uid = utt.user_id
+                WHERE 
+                    EXISTS (
+                        SELECT 1
+                            FROM user_trip_task_junction utt2
+                            WHERE 
+                                utt2.task_id = utt.task_id
+                                AND utt2.user_id = :uid
+                        )
+                    AND u.uid != :uid;
+                    """
+    result = db.execute(
+        text(query),
+        {
+            "uid": request.uid, 
+        }
+    )
+    print("Final Query:", query)
+    data = []
+    columns = result.keys()
+    print(columns)
+    rows = result.fetchall()
+    for row in rows:
+        row_dict = {}
+        for i, column in enumerate(columns):
+            row_dict[column] = row[i]
+            print(column, row[i])
+        data.append(row_dict)
+    print(data)
+    fetch_filtered_task_collaborators = FetchTaskCollaboratorsResponse
+    collaborators = []
+    for d in data:
+        collaborator = TaskCollaborator(
+            uid=d['uid'],
+            email=d['email'],
+            username=d['username'],
+            first_name=d['first_name'],
+            last_name=d['last_name'],
+        )
+    
+        collaborators.append(collaborator)
+
+    return fetch_filtered_task_collaborators(collaborators=collaborators)

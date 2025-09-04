@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import '../index.css';
 import Card from '../components/Card';
 import NavBar from '../components/Navbar';
@@ -7,9 +7,14 @@ import { routeService } from '../services/routeService';
 import { tripService } from '../services/tripService';
 import { useAuth } from '../hooks/useAuth';
 import { FilterDropdown } from '../components/FilterDropdown';
+import { MultiSelectDropdown } from '../components/MultiSelectDropdown';
+import { CalendarDropdown } from '../components/CalendarDropdown';
 import {
   FetchFilteredTasksRequest,
   FetchFilteredTasksResponse,
+  FetchFilteredTasksCollaboratorRequest,
+  FetchFilteredTasksCollaboratorResponse,
+  TaskCollaborator,
 } from '../types/trips';
 import {
   Menu,
@@ -42,17 +47,27 @@ const Home: React.FC = () => {
   const [userTasks, setUserTasks] = useState<UserTaskCard[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const isInitialTaskFetch = useRef(true);
 
   // Task Filter States
   const [tripFilter, setTripFilter] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<string | null>(null);
-  const [peopleFilter, setPeopleFilter] = useState<string | null>(null);
+  const [peopleFilter, setPeopleFilter] = useState<string[]>([]);
+  const [uidToNameMap, setUidToNameMap] = useState<Map<string, string>>(
+    new Map()
+  );
   const [dueDateFilter, setDueDateFilter] = useState<string | null>(null);
 
   // Categories for Trip Filter Dropdown
   const [tripFilterCategories, setTripFilterCategories] = useState<
     string[] | null
   >(null);
+  const [statusFilterCategories, setStatusFilterCategories] = useState<
+    string[] | null
+  >(null);
+  const [peopleFilterCategories, setPeopleFilterCategories] = useState<
+    string[]
+  >([]);
   const sampleCategories = ['Trip to Japan', 'Trip to Korea', 'Trip to USA'];
 
   // scrolling logic for dropdowns
@@ -89,9 +104,22 @@ const Home: React.FC = () => {
   ];
 
   // Filter handle tasks based on selected filters
-  const handleFilterSelection = (title: string | null) => {
-    setTripFilter(title);
-    console.log('Selected Title Filter:', title);
+  const handleTripFilterSelection = (trip: string | null) => {
+    setTripFilter(trip);
+    console.log('Selected Title Filter:', trip);
+  };
+  const handleStatusFilterSelection = (status: string | null) => {
+    setStatusFilter(status);
+    console.log('Selected Status Filter:', status);
+  };
+  const handlePeopleFilterSelection = (people: string[] | null) => {
+    if (people) {
+      setPeopleFilter(people);
+      console.log('Selected People Filter:', people);
+    } else {
+      setPeopleFilter([]);
+      console.log('Cleared People Filter');
+    }
   };
   useEffect(() => {
     const fetchAndFormatData = async () => {
@@ -102,9 +130,9 @@ const Home: React.FC = () => {
         // Fetched Filtered Task API Call
         const defaultRequest: FetchFilteredTasksRequest = {
           tripFilter: tripFilter,
-          peopleFilter: [],
+          peopleFilter: peopleFilter,
           dueDateFilter: null,
-          statusFilter: null,
+          statusFilter: statusFilter,
           uid: user?.uid || '',
         };
         const rawData = (await tripService.fetchFilteredTasks(
@@ -133,19 +161,62 @@ const Home: React.FC = () => {
         setTaskSize(formattedData.length);
         shouldFilteredTacksScroll = formattedData.length > 3;
 
-        // Pull Trip Filter Cateogries
-        const tripFilterCategoriesSet = new Set<string>();
-        formattedData.forEach((task) => {
-          if (task.tripTitle) {
-            tripFilterCategoriesSet.add(task.tripTitle);
-          }
-        });
-        console.log('Trip Filter Categories:', tripFilterCategoriesSet);
-        const tempTripFilterCategories: string[] = [];
-        tripFilterCategoriesSet.forEach((category) => {
-          tempTripFilterCategories.push(category);
-        });
-        setTripFilterCategories(tempTripFilterCategories);
+        if (isInitialTaskFetch.current) {
+          isInitialTaskFetch.current = false;
+
+          const tripFilterCategoriesSet = new Set<string>();
+          const statusFilterCategoriesSet = new Set<number>();
+
+          formattedData.forEach((task) => {
+            if (task.tripTitle) {
+              tripFilterCategoriesSet.add(task.tripTitle);
+            }
+            if (task.status) {
+              statusFilterCategoriesSet.add(task.status);
+            }
+          });
+          console.log('Trip Filter Categories:', tripFilterCategoriesSet);
+          console.log('Status Filter Categories:', statusFilterCategoriesSet);
+
+          const tempStatusFilterCategories: string[] = [];
+          statusFilterCategoriesSet.forEach((category) => {
+            tempStatusFilterCategories.push(category.toString());
+          });
+          setStatusFilterCategories(tempStatusFilterCategories);
+
+          const tempTripFilterCategories: string[] = [];
+          tripFilterCategoriesSet.forEach((category) => {
+            tempTripFilterCategories.push(category);
+          });
+          setTripFilterCategories(tempTripFilterCategories);
+
+          // people filter categories
+          const request: FetchFilteredTasksCollaboratorRequest = {
+            uid: user?.uid || '',
+          };
+          const rawPeopleFilterData =
+            (await tripService.fetchFilteredTaskCollaborators(
+              request
+            )) as unknown as FetchFilteredTasksCollaboratorResponse;
+          const tempUidToNameMap = new Map<string, string>();
+          rawPeopleFilterData.collaborators.forEach(
+            (collaborator: TaskCollaborator) => {
+              tempUidToNameMap.set(
+                collaborator.uid,
+                `${collaborator.first_name} ${collaborator.last_name}`
+              );
+            }
+          );
+          setUidToNameMap(tempUidToNameMap);
+          console.log('UID to Name Map:', tempUidToNameMap);
+          const tempPeopleFilterCategories =
+            rawPeopleFilterData.collaborators.map(
+              (collaborator: TaskCollaborator) =>
+                `${collaborator.uid}:${collaborator.first_name} ${collaborator.last_name}`
+            );
+          setPeopleFilterCategories(tempPeopleFilterCategories);
+          console.log('People Filter Categories:', peopleFilterCategories);
+        }
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : 'Unknown error';
@@ -157,7 +228,7 @@ const Home: React.FC = () => {
     };
 
     fetchAndFormatData();
-  }, [tripFilter]);
+  }, [tripFilter, statusFilter, peopleFilter]);
 
   return (
     <div
@@ -257,14 +328,14 @@ const Home: React.FC = () => {
             </div>
           </div>
         </div>
-        <div className="bg-white rounded-xl shadow-lg  p-6 overflow-hidden">
+        <div className="bg-gray-200 rounded-xl shadow-lg  p-6 overflow-visible">
           <h1 className="font-bold text-center">Tasks Remaining</h1>
           <br />
           <br />
           <div className="grid grid-cols-1 md:grid-cols-[1fr,2fr] gap-4 mb-6">
-            <div>
-              <div className="bg-white rounded-xl shadow-lg text-center h-full justify-center border-4 border-black">
-                <div className="justify-center">
+            <div className="bg-white rounded-xl shadow-lg ">
+              <div className=" text-center h-full justify-center ">
+                <div className="justify-center pt-5">
                   <h1 className="text-lg font-bold text-center"> Filter</h1>
                 </div>
                 <div className="p-4 text-left">
@@ -276,36 +347,41 @@ const Home: React.FC = () => {
                     }
                     placeholder="Filter by Trip"
                     menuType="title"
-                    onSelectionChange={handleFilterSelection}
+                    onSelectionChange={handleTripFilterSelection}
                   />
                 </div>
-                <div className="p-4 text-left">
-                  <FilterDropdown
-                    options={sampleCategories}
-                    placeholder="Filter by Due Date"
+                {/* <div className="p-4 text-left">
+                  <CalendarDropdown
+                    selectedDate={}
+                    placeholder="Filter by Deadline"
                     menuType="dueDate"
-                    onSelectionChange={handleFilterSelection}
+                    onSelectionChange={handleTripFilterSelection}
                   />
-                </div>
+                </div> */}
                 <div className="p-4 text-left">
                   <FilterDropdown
-                    options={sampleCategories}
+                    options={
+                      statusFilterCategories
+                        ? Array.from(statusFilterCategories)
+                        : []
+                    }
                     placeholder="Filter by Status"
                     menuType="status"
-                    onSelectionChange={handleFilterSelection}
+                    onSelectionChange={handleStatusFilterSelection}
                   />
                 </div>
                 <div className="p-4 text-left">
-                  <FilterDropdown
-                    options={sampleCategories}
+                  <MultiSelectDropdown
+                    options={uidToNameMap}
+                    selectedOptions={peopleFilter}
                     placeholder="Filter by People"
-                    menuType="title"
-                    onSelectionChange={handleFilterSelection}
+                    menuType="people"
+                    onSelectionChange={setPeopleFilter}
                   />
                 </div>
               </div>
             </div>
-            <div className="max-h-1/2 overflow-y-auto gap-4 p-4 border-4 border-black">
+            <div className="max-h-1/2 overflow-y-auto gap-4 p-4 bg-white rounded-xl shadow-lg">
               <h1 className="font-bold text-center"> Filtered Tasks</h1>
               <div
                 className={`${taskSize > 3 ? `overflow-y-auto border-gray border-4` : ``} grid grid-cols-1 gap-4`}

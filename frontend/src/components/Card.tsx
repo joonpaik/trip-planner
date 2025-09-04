@@ -43,7 +43,7 @@ const Card: React.FC<CardProps> = ({
         </h4>
       </div>
       <div className="truncate">
-        <p className="text-gray-600 mb-4">{description} ewfrwefwefwefwefewfw</p>
+        <p className="text-gray-600 mb-4">{description}</p>
       </div>
       {/* <div className="text-4xl mb-4">{icon}</div>
       <h3 className="text-xl font-bold text-gray-800 mb-2">{taskTitle}</h3>

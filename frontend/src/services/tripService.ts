@@ -2,6 +2,9 @@ import {
   FetchFilteredTasksRequest,
   FetchFilteredTasksResponse,
   FilteredTask,
+  FetchFilteredTasksCollaboratorRequest,
+  FetchFilteredTasksCollaboratorResponse,
+  TaskCollaborator,
 } from '../types/trips';
 import { apiService } from './apiService';
 import { API_BASE_URL } from '../utils/constants';
@@ -10,7 +13,9 @@ import { access } from 'fs';
 
 export class tripService {
   private static readonly ENDPOINTS = {
-    FETCH_FILTERED_TASKS: '/trip/fetch/fitered-tasks',
+    FETCH_FILTERED_TASKS: '/trip/fetch/filtered-tasks',
+    FETCH_FILTERED_TASK_COLLABORATORS:
+      '/trip/fetch/filtered-task-collaborators',
   } as const;
 
   static async fetchFilteredTasks(
@@ -49,6 +54,41 @@ export class tripService {
       };
 
       console.log('Fetch Filtered Request response:', formattedResponse);
+
+      return formattedResponse;
+    } catch (error) {
+      throw this.handleAuthError(error);
+    }
+  }
+
+  static async fetchFilteredTaskCollaborators(
+    request: FetchFilteredTasksCollaboratorRequest
+  ): Promise<FetchFilteredTasksCollaboratorResponse> {
+    try {
+      const response = await apiService.post(
+        API_BASE_URL + tripService.ENDPOINTS.FETCH_FILTERED_TASK_COLLABORATORS,
+        {
+          uid: request.uid,
+        }
+      );
+
+      // Extract collaborators from response
+      const collaborators: TaskCollaborator[] = new Array<TaskCollaborator>();
+      response.data.collaborators.forEach((item: any) => {
+        const collaborator: TaskCollaborator = {
+          uid: item.uid,
+          email: item.email,
+          username: item.username,
+          first_name: item.first_name,
+          last_name: item.last_name,
+        };
+        collaborators.push(collaborator);
+      });
+
+      // Map the response to match the FetchFilteredTasksCollaboratorResponse interface
+      const formattedResponse: FetchFilteredTasksCollaboratorResponse = {
+        collaborators: collaborators,
+      };
 
       return formattedResponse;
     } catch (error) {
