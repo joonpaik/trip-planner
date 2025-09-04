@@ -6,7 +6,7 @@ import AnimationWrapper from '../components/AnimationWrapper';
 import { routeService } from '../services/routeService';
 import { tripService } from '../services/tripService';
 import { useAuth } from '../hooks/useAuth';
-import { TaskDropdown } from '../components/TaskDropdown';
+import { FilterDropdown } from '../components/FilterDropdown';
 import {
   FetchFilteredTasksRequest,
   FetchFilteredTasksResponse,
@@ -38,14 +38,25 @@ export interface UserTaskCard {
 
 const Home: React.FC = () => {
   const [sidebarOpen, setSidebarOpen] = useState<boolean>(false);
+  const [taskSize, setTaskSize] = useState<number>(0);
   const [userTasks, setUserTasks] = useState<UserTaskCard[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   // Task Filter States
   const [tripFilter, setTripFilter] = useState<string | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string | null>(null);
   const [peopleFilter, setPeopleFilter] = useState<string | null>(null);
   const [dueDateFilter, setDueDateFilter] = useState<string | null>(null);
+
+  // Categories for Trip Filter Dropdown
+  const [tripFilterCategories, setTripFilterCategories] = useState<
+    string[] | null
+  >(null);
+  const sampleCategories = ['Trip to Japan', 'Trip to Korea', 'Trip to USA'];
+
+  // scrolling logic for dropdowns
+  let shouldFilteredTacksScroll = false;
 
   // Auth Context
   const { user } = useAuth();
@@ -78,7 +89,7 @@ const Home: React.FC = () => {
   ];
 
   // Filter handle tasks based on selected filters
-  const handleTitleFilerSelection = (title: string | null) => {
+  const handleFilterSelection = (title: string | null) => {
     setTripFilter(title);
     console.log('Selected Title Filter:', title);
   };
@@ -88,9 +99,9 @@ const Home: React.FC = () => {
         setLoading(true);
         setError('');
 
-        // Call your API
+        // Fetched Filtered Task API Call
         const defaultRequest: FetchFilteredTasksRequest = {
-          tripFilter: null,
+          tripFilter: tripFilter,
           peopleFilter: [],
           dueDateFilter: null,
           statusFilter: null,
@@ -103,7 +114,7 @@ const Home: React.FC = () => {
         const tableData: TableData[] =
           rawData.filteredTasks as unknown as TableData[];
         console.log('Table Data:', tableData);
-        // Format the data for your Card components
+        // Format the data for Card components
         const formattedData: UserTaskCard[] = new Array<UserTaskCard>();
         tableData.forEach((item: any) => {
           const task: UserTaskCard = {
@@ -119,6 +130,22 @@ const Home: React.FC = () => {
 
         console.log('Formatted Data:', formattedData);
         setUserTasks(formattedData);
+        setTaskSize(formattedData.length);
+        shouldFilteredTacksScroll = formattedData.length > 3;
+
+        // Pull Trip Filter Cateogries
+        const tripFilterCategoriesSet = new Set<string>();
+        formattedData.forEach((task) => {
+          if (task.tripTitle) {
+            tripFilterCategoriesSet.add(task.tripTitle);
+          }
+        });
+        console.log('Trip Filter Categories:', tripFilterCategoriesSet);
+        const tempTripFilterCategories: string[] = [];
+        tripFilterCategoriesSet.forEach((category) => {
+          tempTripFilterCategories.push(category);
+        });
+        setTripFilterCategories(tempTripFilterCategories);
       } catch (err) {
         const errorMessage =
           err instanceof Error ? err.message : 'Unknown error';
@@ -130,7 +157,7 @@ const Home: React.FC = () => {
     };
 
     fetchAndFormatData();
-  }, []);
+  }, [tripFilter]);
 
   return (
     <div
@@ -241,55 +268,61 @@ const Home: React.FC = () => {
                   <h1 className="text-lg font-bold text-center"> Filter</h1>
                 </div>
                 <div className="p-4 text-left">
-                  <TaskDropdown
-                    tasks={userTasks}
+                  <FilterDropdown
+                    options={
+                      tripFilterCategories
+                        ? Array.from(tripFilterCategories)
+                        : []
+                    }
                     placeholder="Filter by Trip"
                     menuType="title"
-                    onSelectionChange={handleTitleFilerSelection}
+                    onSelectionChange={handleFilterSelection}
                   />
                 </div>
                 <div className="p-4 text-left">
-                  <TaskDropdown
-                    tasks={userTasks}
+                  <FilterDropdown
+                    options={sampleCategories}
                     placeholder="Filter by Due Date"
                     menuType="dueDate"
-                    onSelectionChange={handleTitleFilerSelection}
+                    onSelectionChange={handleFilterSelection}
                   />
                 </div>
                 <div className="p-4 text-left">
-                  <TaskDropdown
-                    tasks={userTasks}
+                  <FilterDropdown
+                    options={sampleCategories}
                     placeholder="Filter by Status"
                     menuType="status"
-                    onSelectionChange={handleTitleFilerSelection}
+                    onSelectionChange={handleFilterSelection}
                   />
                 </div>
                 <div className="p-4 text-left">
-                  <TaskDropdown
-                    tasks={userTasks}
+                  <FilterDropdown
+                    options={sampleCategories}
                     placeholder="Filter by People"
                     menuType="title"
-                    onSelectionChange={handleTitleFilerSelection}
+                    onSelectionChange={handleFilterSelection}
                   />
                 </div>
               </div>
             </div>
-            <div className=" gap-4 p-4 border-4 border-black">
+            <div className="max-h-1/2 overflow-y-auto gap-4 p-4 border-4 border-black">
               <h1 className="font-bold text-center"> Filtered Tasks</h1>
-              <div className="grid grid-cols-1 gap-4 border-4 border-black">
-                {userTasks
-                  .filter((item, index) => index < 3)
-                  .map((card, index) => (
-                    <AnimationWrapper key={index} delay={(index + 3) * 150}>
-                      <Card
-                        taskTitle={card.taskTitle}
-                        description={card.description}
-                        bgColor="bg-white"
-                        tripTitle={card.tripTitle}
-                        deadline={card.deadline}
-                      />
-                    </AnimationWrapper>
-                  ))}
+              <div
+                className={`${taskSize > 3 ? `overflow-y-auto border-gray border-4` : ``} grid grid-cols-1 gap-4`}
+                style={taskSize > 3 ? { maxHeight: `${3 * 11}rem` } : {}}
+              >
+                {userTasks.map((card, index) => (
+                  <AnimationWrapper key={index} delay={(index + 3) * 150}>
+                    <Card
+                      taskTitle={card.taskTitle}
+                      description={card.description}
+                      bgColor="bg-gray-200"
+                      status={card.status}
+                      tripTitle={card.tripTitle}
+                      deadline={card.deadline}
+                    />
+                  </AnimationWrapper>
+                ))}
               </div>
             </div>
           </div>
