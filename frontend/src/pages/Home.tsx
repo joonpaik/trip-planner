@@ -238,7 +238,7 @@ const Home: React.FC = () => {
       <NavBar />
       <main className="p-4 lg:p-8 space-y-8 border-4 border-black rounded-xl">
         {/* Upcoming Trip Hero Section bg-white rounded-xl shadow-lg */}
-        <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-3xl shadow-xl overflow-hidden border-4 border-black">
+        <div className="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-800 rounded-3xl shadow-xl overflow-hidden">
           <div className="relative p-6 lg:p-8">
             <div className="relative z-10">
               <div className="flex items-center space-x-2 mb-4 justify-between">

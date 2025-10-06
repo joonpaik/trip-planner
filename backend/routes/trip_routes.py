@@ -37,9 +37,9 @@ class FetchFilteredTasksRequest(BaseModel):
     due_date_filter: str
     people_filter: list[str]
 
-class FetchTaskCollaboratorsResquest(BaseModel):
+class FetchTaskCollaboratorsRequest(BaseModel):
     uid: str
-class TaskCollaborator(BaseModel):
+class User(BaseModel):
     uid: str
     email: str
     username: str
@@ -47,7 +47,7 @@ class TaskCollaborator(BaseModel):
     last_name: str
 
 class FetchTaskCollaboratorsResponse(BaseModel):
-    collaborators: list[TaskCollaborator]
+    collaborators: list[User]
 class FilteredTask(BaseModel):
     task_title: str
     task_description: str
@@ -57,10 +57,21 @@ class FilteredTask(BaseModel):
     created_at: datetime
     updated_at: datetime
 
-
 class FetchFilteredTasksResponse(BaseModel):
     filtered_trips: list[FilteredTask]
 
+class AddTripRequest(BaseModel):
+    uid: str
+    trip_title: str
+    trip_description: str
+    locations: str
+    people: list[User]
+    start_date: datetime
+    end_date: datetime
+
+class AddTripResponse(BaseModel):
+    trip_id: int
+    message: str
 
 """
     Fetch Filtered Trips-Users-Tasks Junction
@@ -155,7 +166,7 @@ async def fetch_filtered_tasks(request: FetchFilteredTasksRequest, db: db_depend
     Fetch Filtered Task Collaborators Trips-Users-Tasks Junction
 """
 @router.post("/fetch/filtered-task-collaborators",response_model=FetchTaskCollaboratorsResponse, status_code=status.HTTP_200_OK)
-async def fetch_filtered_task_collaborators(request: FetchTaskCollaboratorsResquest, db: db_dependency):
+async def fetch_filtered_task_collaborators(request: FetchTaskCollaboratorsRequest, db: db_dependency):
     if not request:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request")
     print("Fetch Filtered Task Collaborators Request:", request)
@@ -196,7 +207,7 @@ async def fetch_filtered_task_collaborators(request: FetchTaskCollaboratorsResqu
     fetch_filtered_task_collaborators = FetchTaskCollaboratorsResponse
     collaborators = []
     for d in data:
-        collaborator = TaskCollaborator(
+        collaborator = User(
             uid=d['uid'],
             email=d['email'],
             username=d['username'],
@@ -207,3 +218,78 @@ async def fetch_filtered_task_collaborators(request: FetchTaskCollaboratorsResqu
         collaborators.append(collaborator)
 
     return fetch_filtered_task_collaborators(collaborators=collaborators)
+
+"""
+    Add Trip Object:
+        - Add trip
+        - Add users
+"""
+@router.post("/add", response_model=AddTripResponse, status_code=status.HTTP_201_CREATED)
+async def add_trip(request: AddTripRequest, db: db_dependency):
+    if not request:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid request")
+    print("Add Trip Request:", request)
+
+    # Check if user and collaborators exist
+    user_check_query = """SELECT uid from users where uid = :uid"""
+    result = db.execute(
+        text(user_check_query),
+        {"uid": request.uid}
+    )
+
+    if not result.fetchone():
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User with uid {request.uid} not found")
+    for person in request.people:
+        result = db.execute(
+            text(user_check_query),
+            {"uid": person.uid}
+        )
+        if not result.fetchone():
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"User with uid {person.uid} not found")
+    print("All users exist")
+
+    # Insert trip into trips tables
+    insert_trip_query = """INSERT INTO trips (title, description, locations, start_date, end_date, created_at, updated_at)
+                            VALUES (:title, :description, :locations, :start_date, :end_date, NOW(), NOW())
+                            RETURNING id;"""
+    result = db.execute(
+        text(insert_trip_query),
+        {
+            "title": request.trip_title,
+            "description": request.trip_description,
+            "locations": request.locations,
+            "start_date": request.start_date,
+            "end_date": request.end_date,
+        }
+    )
+    trip_id = result.fetchone()[0]
+    db.commit()
+    print("Inserted Trip ID:", trip_id)
+
+    # Insert users into user_trip_task_junction
+    insert_user_trip_junction_query = """INSERT INTO user_trip_task_junction (user_id, trip_id, task_id)
+                                            VALUES (:user_id, :trip_id, NULL);"""
+    # Add the requesting user to the trip
+    db.execute(
+        text(insert_user_trip_junction_query),
+        {
+            "user_id": request.uid,
+            "trip_id": trip_id,
+        }
+    )
+    # Add other people to the trip
+    for person in request.people:
+        db.execute(
+            text(insert_user_trip_junction_query),
+            {
+                "user_id": person.uid,
+                "trip_id": trip_id,
+            }
+        )
+    db.commit()
+
+    add_trip_response = AddTripResponse(
+        trip_id=trip_id,
+        message="Trip added successfully"
+    )
+    return add_trip_response

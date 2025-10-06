@@ -12,7 +12,7 @@ const NavBar: React.FC = () => {
 
           <div className="flex gap-8">
             <a
-              href="/"
+              href="/mytrips"
               className="text-white/90 hover:text-white transition-colors"
             >
               My Trips
