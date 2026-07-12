@@ -69,6 +69,12 @@ export const CalendarDropdown: React.FC<CalendarDropdownProps> = ({
     return date1.toDateString() === date2.toDateString();
   };
 
+  const isPast = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    return date.getTime() < today.getTime();
+  };
+
   const handleDateSelect = (day: number) => {
     const newDate = new Date(
       currentMonth.getFullYear(),
@@ -110,6 +116,7 @@ export const CalendarDropdown: React.FC<CalendarDropdownProps> = ({
       );
       const isSelected = isSameDate(date, selectedDate);
       const isTodayDate = isToday(date);
+      const isPastDate = isPast(date);
 
       days.push(
         <button
@@ -120,7 +127,9 @@ export const CalendarDropdown: React.FC<CalendarDropdownProps> = ({
               ? 'bg-blue-600 text-white font-medium'
               : isTodayDate
                 ? 'bg-blue-100 text-blue-600 font-medium'
-                : 'text-gray-700 hover:bg-gray-100'
+                : isPastDate
+                  ? 'text-gray-300 hover:bg-gray-50'
+                  : 'text-gray-700 hover:bg-gray-100'
           }`}
         >
           {day}

@@ -1,11 +1,19 @@
+import logging
 from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 import socketio
-from routes import auth_routes, trip_routes
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+from routes import auth_routes, trip_routes, user_routes
 from sqlalchemy.orm import Session
 from database import engine, Base, SessionLocal, get_db
-from models import user_tasks_model
+from models import user_tasks_model, trip_model, email_verification_token_model, password_reset_token_model
+from models.junctions import (
+    user_trip_junction_model,
+    user_trip_task_junction_model,
+    user_follows_model,
+)
 from routes import user_tasks_routes
 import os
 from routes.auth_routes import get_current_user
@@ -82,6 +90,7 @@ app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 app.include_router(user_tasks_routes.router)
 app.include_router(auth_routes.router, tags=["Authentication"])
 app.include_router(trip_routes.router, tags=["Trip"])
+app.include_router(user_routes.router, tags=["User"])
 
 # app.include_router(posts.router, prefix="/posts", tags=["Posts"])
 # app.include_router(users.router, prefix="/users", tags=["Users"])

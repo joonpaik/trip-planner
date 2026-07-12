@@ -14,6 +14,10 @@ export interface TokenStorage {
   isTokenExpired(token: string): boolean;
 }
 
+// Tokens live in sessionStorage (not localStorage) so each browser tab/window
+// keeps its own independent session - signing into a different account in
+// another tab won't overwrite this one's session, matching how most apps
+// let you use multiple accounts side by side in separate windows.
 class TokenService implements TokenStorage {
   private static readonly TOKEN_KEY = {
     ACCESS_TOKEN: 'access_token',
@@ -22,14 +26,7 @@ class TokenService implements TokenStorage {
 
   getAccessToken(): string | null {
     try {
-      // console.log(
-      //   'tokenService: Getting access token:' +
-      //     localStorage.getItem(TokenService.TOKEN_KEY.ACCESS_TOKEN)
-      // );
-      // console.log(
-      //   'tokenService: Getting access token:' + localStorage.getItem('dummy')
-      // );
-      return localStorage.getItem(TokenService.TOKEN_KEY.ACCESS_TOKEN);
+      return sessionStorage.getItem(TokenService.TOKEN_KEY.ACCESS_TOKEN);
     } catch (error) {
       console.error('Error getting access token:', error);
       return null;
@@ -38,11 +35,7 @@ class TokenService implements TokenStorage {
 
   getRefreshToken(): string | null {
     try {
-      // console.log(
-      //   'tokenService: Getting refresh token:' +
-      //     localStorage.getItem(TokenService.TOKEN_KEY.REFRESH_TOKEN)
-      // );
-      return localStorage.getItem(TokenService.TOKEN_KEY.REFRESH_TOKEN);
+      return sessionStorage.getItem(TokenService.TOKEN_KEY.REFRESH_TOKEN);
     } catch (error) {
       console.error('Error getting refresh token:', error);
       return null;
@@ -51,16 +44,8 @@ class TokenService implements TokenStorage {
 
   setTokens(accessToken: string, refreshToken: string): void {
     try {
-      localStorage.setItem(TokenService.TOKEN_KEY.ACCESS_TOKEN, accessToken);
-      localStorage.setItem(TokenService.TOKEN_KEY.REFRESH_TOKEN, refreshToken);
-      localStorage.setItem('dummy', 'just to trigger storage event');
-
-      // console.log(
-      //   'tokenService: Set refresh token:' +
-      //     localStorage.getItem(TokenService.TOKEN_KEY.REFRESH_TOKEN),
-      //   'access token:' +
-      //     localStorage.getItem(TokenService.TOKEN_KEY.ACCESS_TOKEN)
-      // );
+      sessionStorage.setItem(TokenService.TOKEN_KEY.ACCESS_TOKEN, accessToken);
+      sessionStorage.setItem(TokenService.TOKEN_KEY.REFRESH_TOKEN, refreshToken);
     } catch (error) {
       console.error('Error setting tokens:', error);
     }
@@ -68,9 +53,8 @@ class TokenService implements TokenStorage {
 
   clearTokens(): void {
     try {
-      console.log('Clearing tokens');
-      localStorage.removeItem(TokenService.TOKEN_KEY.ACCESS_TOKEN);
-      localStorage.removeItem(TokenService.TOKEN_KEY.REFRESH_TOKEN);
+      sessionStorage.removeItem(TokenService.TOKEN_KEY.ACCESS_TOKEN);
+      sessionStorage.removeItem(TokenService.TOKEN_KEY.REFRESH_TOKEN);
     } catch (error) {
       console.error('Error clearing tokens:', error);
     }
@@ -89,7 +73,6 @@ class TokenService implements TokenStorage {
       }
 
       const decoded = JSON.parse(atob(payload)) as JWTPayload;
-      // console.log('Decoded token payload:', decoded);
       return decoded.exp * 1000 < Date.now();
     } catch (error) {
       console.error('Error checking token expiration:', error);

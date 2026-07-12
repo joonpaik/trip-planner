@@ -2,6 +2,7 @@ import {
   LoginRequest,
   RegisterRequest,
   LoginResponse,
+  RegisterResult,
   RefreshTokenRequest,
   RefreshTokenResponse,
   User,
@@ -18,6 +19,10 @@ export class authService {
     REFRESH: '/auth/refresh',
     USER: '/auth/user',
     LOGOUT: '/auth/logout',
+    VERIFY_EMAIL: '/auth/verify-email',
+    RESEND_VERIFICATION: '/auth/resend-verification',
+    FORGOT_PASSWORD: '/auth/forgot-password',
+    RESET_PASSWORD: '/auth/reset-password',
   } as const;
 
   static async login(creds: LoginRequest): Promise<LoginResponse> {
@@ -33,7 +38,7 @@ export class authService {
     }
   }
 
-  static async register(creds: RegisterRequest): Promise<LoginResponse> {
+  static async register(creds: RegisterRequest): Promise<RegisterResult> {
     try {
       const response = await apiService.post(
         authService.ENDPOINTS.REGISTER,
@@ -80,6 +85,56 @@ export class authService {
       return response.data;
     } catch (error) {
       throw this.handleAuthError(error, 'Failed to fetch profile');
+    }
+  }
+
+  static async verifyEmail(token: string): Promise<{ message: string }> {
+    try {
+      const response = await apiService.post(authService.ENDPOINTS.VERIFY_EMAIL, {
+        token,
+      });
+      return response.data;
+    } catch (error) {
+      throw this.handleAuthError(error, 'Failed to verify email');
+    }
+  }
+
+  static async resendVerification(email: string): Promise<{ message: string }> {
+    try {
+      const response = await apiService.post(
+        authService.ENDPOINTS.RESEND_VERIFICATION,
+        { email }
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleAuthError(error, 'Failed to resend verification email');
+    }
+  }
+
+  static async forgotPassword(email: string): Promise<{ message: string }> {
+    try {
+      const response = await apiService.post(
+        authService.ENDPOINTS.FORGOT_PASSWORD,
+        { email }
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleAuthError(error, 'Failed to send password reset email');
+    }
+  }
+
+  static async resetPassword(
+    token: string,
+    newPassword: string
+  ): Promise<{ message: string }> {
+    try {
+      const response = await apiService.post(
+        authService.ENDPOINTS.RESET_PASSWORD,
+        { token, new_password: newPassword }
+      );
+      return response.data;
+    } catch (error) {
+      throw this.handleAuthError(error, 'Failed to reset password');
     }
   }
 

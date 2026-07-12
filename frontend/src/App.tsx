@@ -9,6 +9,8 @@ import AppRoutes from './AppRoutes';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { AuthProvider } from './context/authContext';
 import { LoginForm } from './pages/Login';
+import { VerifyEmail } from './pages/VerifyEmail';
+import { ResetPassword } from './pages/ResetPassword';
 
 function App() {
   return (
@@ -17,6 +19,12 @@ function App() {
         <Routes>
           {/* Public login page */}
           <Route path="/login" element={<LoginForm />} />
+
+          {/* Public email verification landing page */}
+          <Route path="/verify-email" element={<VerifyEmail />} />
+
+          {/* Public password reset landing page */}
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Protected home page */}
           <Route
@@ -52,7 +60,7 @@ export default App;
 
           <div
             className="min-h-screen"
-            style={{ background: 'linear-gradient(#A7E3E0, #14f2e7ff)' }}
+            style={{ background: 'linear-gradient(135deg, #fffbeb, #ffe4c7)' }}
           >
             <NavBar />
             <AppRoutes />
@@ -65,7 +73,7 @@ export default App;
 //       <BrowserRouter>
 //         <div
 //           className="min-h-screen"
-//           style={{ background: 'linear-gradient(#A7E3E0, #14f2e7ff)' }}
+//           style={{ background: 'linear-gradient(135deg, #fffbeb, #ffe4c7)' }}
 //         >
 //           <Routes>
 //             <Route path="/login" element={<LoginForm />} />

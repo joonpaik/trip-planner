@@ -5,7 +5,12 @@ import React, {
   useEffect,
   ReactNode,
 } from 'react';
-import { User, AuthContextType, LoginResponse } from '../types/auth';
+import {
+  User,
+  AuthContextType,
+  LoginResponse,
+  RegisterResult,
+} from '../types/auth';
 import { authService } from '../services/authService';
 import { tokenService } from '../services/tokenService';
 
@@ -35,7 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     firstname: string,
     lastname: string,
     email: string
-  ): Promise<LoginResponse> => {
+  ): Promise<RegisterResult> => {
     const response = await authService.register({
       username: username,
       password: password,
@@ -43,8 +48,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       lastname: lastname,
       email: email,
     });
-    tokenService.setTokens(response.access_token, response.refresh_token);
-    setUser(response.user);
+    if ('access_token' in response) {
+      tokenService.setTokens(response.access_token, response.refresh_token);
+      setUser(response.user);
+    }
     return response;
   };
 
@@ -90,6 +97,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     return accessToken;
   };
 
+  const refreshUser = async (): Promise<void> => {
+    const token = await getValidAccessToken();
+    if (token) {
+      const currentUser = await authService.getCurrentUser(token);
+      setUser(currentUser);
+    }
+  };
+
   // Initialize user state
   useEffect(() => {
     const initializeAuth = async (): Promise<void> => {
@@ -118,6 +133,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     getValidAccessToken,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
