@@ -14,34 +14,23 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=mysql+pymysql://familyuser:familypass@mysql:3306/familysocial
-      - REDIS_URL=redis://redis:6379/0
+      - DATABASE_URL=postgresql://tripplanner:tripplanner@postgres:5432/tripplanner
       - JWT_SECRET=your-super-secret-jwt-key-change-this
     depends_on:
-      - mysql
-      - redis
+      - postgres
     volumes:
       - ./backend/uploads:/app/uploads
 
-  mysql:
-    image: mysql:8.0
+  postgres:
+    image: postgres:16-alpine
     environment:
-      - MYSQL_DATABASE=familysocial
-      - MYSQL_USER=familyuser
-      - MYSQL_PASSWORD=familypass
-      - MYSQL_ROOT_PASSWORD=rootpassword
+      - POSTGRES_DB=tripplanner
+      - POSTGRES_USER=tripplanner
+      - POSTGRES_PASSWORD=tripplanner
     ports:
-      - "3306:3306"
+      - "5432:5432"
     volumes:
-      - mysql_data:/var/lib/mysql
-
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-    volumes:
-      - redis_data:/data
+      - postgres_data:/var/lib/postgresql/data
 
 volumes:
-  mysql_data:
-  redis_data:
+  postgres_data:

@@ -1,16 +1,14 @@
-# social-network
+# TripPlanner+
 
-# Family Social Network
-
-A private social network for families built with React TypeScript, Python FastAPI, and MySQL.
+A group trip-planning app: shared itineraries, per-task cost splitting, a cross-trip calendar, and a to-do/expenses view, so a group trip doesn't have to run on a group chat.
 
 ## 🏗️ Architecture
 
-- **Frontend:** React 18 + TypeScript + Material-UI + Redux Toolkit + PWA
-- **Backend:** Python FastAPI + SQLAlchemy + MySQL
-- **Database:** MySQL 8.0 + Redis
-- **Deployment:** Docker + Kubernetes
-- **Real-time:** Socket.IO
+- **Frontend:** React 18 + TypeScript + Tailwind CSS
+- **Backend:** Python FastAPI + SQLAlchemy
+- **Database:** PostgreSQL
+- **Auth:** JWT access/refresh tokens (python-jose, passlib, bcrypt)
+- **Email:** SMTP for verification and password-reset links (falls back to logging the link when no SMTP server is configured, e.g. local dev)
 
 ## 🚀 Quick Start
 
@@ -18,38 +16,36 @@ A private social network for families built with React TypeScript, Python FastAP
 
 - Node.js 18+
 - Python 3.9+
-- Docker Desktop
+- PostgreSQL (running locally or reachable via `DATABASE_URL`)
 - Git
 
 ### Development Setup
 
-````bash
+```bash
 # Clone repository
-git clone https://github.com/yourusername/family-social-network.git
-cd family-social-network
+git clone https://github.com/yourusername/trip-planner.git
+cd trip-planner
+
+# Configure the backend
+cp backend/.env.example backend/.env
+# then fill in DATABASE_URL (postgresql://...), JWT_SECRET, and SMTP_* if you want real emails sent
 
 # Install dependencies
 make install
 
 # Start development
 make dev
+```
 
+## ✨ Features
 
-
-## 📋 Current Status
-
-✅ **Completed:**
-- React TypeScript frontend with Material-UI
-- Python FastAPI backend with SQLAlchemy
-- Docker configuration for all services
-- VS Code development environment
-- Development tools and scripts
-
-🚧 **Next Steps:**
-- Implement user authentication
-- Create post and messaging features
-- Add real-time Socket.IO integration
-- Deploy to Kubernetes cluster
+- **Trip itinerary builder** — ordered stops with drag-to-reorder and address autocomplete
+- **Task cost splitting** — split any task's cost by dollar amount or percentage across assignees, with a per-trip cost summary
+- **Roles** — trip admins and participants, with self-healing admin reassignment if an admin leaves or is deactivated
+- **Home dashboard** — every trip at a glance: itinerary progress, budget, readiness, and participant progress
+- **Calendar** — every trip's dates in one color-coded, shareable calendar
+- **To-Do** — a cross-trip task list, filterable by trip, status, and person
+- **Expenses** — grand total, what you owe, and cost broken down by trip and by person
 
 ## 🛠️ Development Workflow
 
@@ -64,9 +60,9 @@ docker-compose up
 make test
 
 # Create new feature
-git checkout develop
-git checkout -b feature/user-authentication
+git checkout main
+git checkout -b feature/my-feature
 # ... make changes ...
-git commit -m "feat: add user authentication"
-git push origin feature/user-authentication
-````
+git commit -m "feat: add my feature"
+git push origin feature/my-feature
+```
