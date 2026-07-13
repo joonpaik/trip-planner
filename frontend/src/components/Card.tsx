@@ -39,19 +39,23 @@ const Card: React.FC<CardProps> = ({
         hover:shadow-2xl hover:-translate-y-2 cursor-pointer
         `}
     >
-      <div className="flex justify-between">
-        <h3 className="text-xl font-bold text-gray-800 mb-2">{taskTitle}</h3>
-        <div className="min-w-10 text-sm font-medium text-gray-500">
+      <div className="flex justify-between items-start gap-2">
+        <h3 className="text-xl font-bold text-gray-800 mb-2 min-w-0 flex-1 break-words line-clamp-2">
+          {taskTitle}
+        </h3>
+        <div className="flex-shrink-0 whitespace-nowrap text-sm font-medium text-gray-500">
           Due: <DateDisplay date={deadline ? new Date(deadline) : new Date()} />
         </div>
       </div>
       <div>
-        <h4 className="text-md font-semibold text-gray-600 mb-2">
+        <h4 className="text-md font-semibold text-gray-600 mb-2 truncate">
           {tripTitle}
         </h4>
       </div>
-      <div className="truncate">
-        <p className="text-gray-600 mb-4">{description}</p>
+      <div>
+        <p className="text-gray-600 mb-4 line-clamp-2 break-words">
+          {description}
+        </p>
       </div>
       {(onComplete || onDelete) && (
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-black/10">

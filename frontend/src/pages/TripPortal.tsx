@@ -1267,6 +1267,13 @@ const TripPortal: React.FC<TripPortalProps> = ({
     });
   };
 
+  const handleTaskAssigneeCostChange = (uid: string, rawValue: string) => {
+    setTaskAssigneeCosts((prev) => ({
+      ...prev,
+      [uid]: rawValue === '' ? null : Number(rawValue),
+    }));
+  };
+
   const handleCreateTask = async () => {
     if (!taskTargetTrip || !user) {
       alert('You must be logged in to create a task.');
@@ -1280,6 +1287,30 @@ const TripPortal: React.FC<TripPortalProps> = ({
     ) {
       alert('Please fill in all required fields.');
       return;
+    }
+
+    if (selectedAssignees.length === 0) {
+      alert('Please assign this task to at least one person before saving.');
+      return;
+    }
+
+    if (taskCostEnabled) {
+      const costSum = Object.values(taskAssigneeCosts).reduce(
+        (sum: number, v) => sum + (v ?? 0),
+        0
+      );
+      if (taskCostSplitType === 'direct' && costSum > (taskTotalCost ?? 0) + 0.005) {
+        alert(
+          `The split amounts ($${costSum.toFixed(2)}) exceed the total cost ($${(taskTotalCost ?? 0).toFixed(2)}). Please adjust before saving.`
+        );
+        return;
+      }
+      if (taskCostSplitType === 'percentage' && costSum > 100.005) {
+        alert(
+          `The split percentages add up to ${costSum.toFixed(2)}%, which is over 100%. Please adjust before saving.`
+        );
+        return;
+      }
     }
 
     try {
@@ -1798,16 +1829,18 @@ const TripPortal: React.FC<TripPortalProps> = ({
                             <input
                               type="number"
                               min="0"
+                              max={
+                                taskCostSplitType === 'direct'
+                                  ? taskTotalCost ?? 0
+                                  : 100
+                              }
                               step="0.01"
                               value={taskAssigneeCosts[member.uid] ?? ''}
                               onChange={(e) =>
-                                setTaskAssigneeCosts((prev) => ({
-                                  ...prev,
-                                  [member.uid]:
-                                    e.target.value === ''
-                                      ? null
-                                      : Number(e.target.value),
-                                }))
+                                handleTaskAssigneeCostChange(
+                                  member.uid,
+                                  e.target.value
+                                )
                               }
                               placeholder={
                                 taskCostSplitType === 'direct' ? '$0.00' : '0%'
@@ -2258,10 +2291,6 @@ const TripPortal: React.FC<TripPortalProps> = ({
               )}
 
             {(() => {
-              const totalCost = tripTasks.reduce(
-                (sum, t) => sum + (t.totalCost ?? 0),
-                0
-              );
               const costByUser = new Map<string, number>();
               tripTasks.forEach((t) => {
                 (t.costBreakdown ?? []).forEach((entry) => {
@@ -2271,6 +2300,14 @@ const TripPortal: React.FC<TripPortalProps> = ({
                   );
                 });
               });
+              // Total cost is the sum of what everyone actually owes, not
+              // each task's (independently editable) total-cost field -
+              // those two numbers can diverge if a task's split doesn't
+              // fully allocate its total.
+              const totalCost = Array.from(costByUser.values()).reduce(
+                (sum, amount) => sum + amount,
+                0
+              );
               const budget = trip.budget;
               const hasCostData = totalCost > 0 || costByUser.size > 0;
               if (!hasCostData && budget == null) return null;
