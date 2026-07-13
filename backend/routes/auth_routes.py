@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from sqlalchemy.orm import Session
 from sqlalchemy import text, or_
 from database import get_db
@@ -6,14 +6,18 @@ from starlette import status
 from database import SessionLocal
 from models.user_model import User
 from models.refresh_token_model import RefreshToken
+from models.email_verification_token_model import EmailVerificationToken
+from models.password_reset_token_model import PasswordResetToken
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import ExpiredSignatureError, JWTError, jwt
 from pydantic import BaseModel, Field
-from typing import Annotated, Any
+from typing import Annotated, Any, Union
 from uuid import uuid4
 from datetime import datetime, timedelta, timezone
 import os
+import secrets
+from utils.email_service import send_verification_email, send_password_reset_email
 
 """
     Auth Layout:
@@ -70,11 +74,38 @@ class UserLoginRequest(BaseModel):
 class UserModel(BaseModel):
     username: str
     uid: str
+    email: str
+    is_verified: bool
 class UserLoginResponse(BaseModel):
     user: UserModel
     access_token: str
     refresh_token: str
     token_type: str
+
+class VerifyEmailRequest(BaseModel):
+    token: str
+
+class VerifyEmailResponse(BaseModel):
+    message: str
+
+class ResendVerificationRequest(BaseModel):
+    email: str
+
+class ResendVerificationResponse(BaseModel):
+    message: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: str
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+class ResetPasswordResponse(BaseModel):
+    message: str
 """
     Helper Methods
 """
@@ -102,7 +133,11 @@ async def get_current_user(access_token: Token, db: db_dependency):
         if not result:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token expired or invalid")
 
-        return {'username': username, 'uid': uid}
+        user = db.query(User).filter(User.uid == uid).first()
+        if not user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        return {'username': username, 'uid': uid, 'email': user.email, 'is_verified': user.is_verified}
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
 
@@ -176,29 +211,70 @@ def verify_refresh_token(token: str, db: Session):
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Could not validate credentials")
 
+# Creating and emailing an email verification token
+def create_and_send_verification_token(user: User, db: Session):
+    token = secrets.token_urlsafe(32)
+    verification_token = EmailVerificationToken(
+        user_id=user.uid,
+        token=token,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=24),
+        is_used=False
+    )
+    db.add(verification_token)
+    db.commit()
+    send_verification_email(user.email, token)
+
+# Creating and emailing a password reset token
+def create_and_send_password_reset_token(user: User, db: Session):
+    token = secrets.token_urlsafe(32)
+    reset_token = PasswordResetToken(
+        user_id=user.uid,
+        token=token,
+        expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        is_used=False
+    )
+    db.add(reset_token)
+    db.commit()
+    send_password_reset_email(user.email, token)
+
 """
     Register User API
 """
-@router.post("/register",response_model=UserLoginResponse,status_code=status.HTTP_201_CREATED)
-async def create_user(create_user_request: CreateUserRequest, db: db_dependency):
+@router.post("/register",response_model=Union[UserLoginResponse, ResendVerificationResponse],status_code=status.HTTP_201_CREATED)
+async def create_user(create_user_request: CreateUserRequest, db: db_dependency, response: Response):
+    print(">>> [register] Endpoint hit with request:", create_user_request)
+
     # Check for existing user
     create_user_request.username = create_user_request.username.lower()
     create_user_request.email = create_user_request.email.lower()
+    print(">>> [register] Checking for existing username:", create_user_request.username)
     existing_username = db.query(User).filter(
         (User.username == create_user_request.username)
     ).first()
 
     if existing_username:
+        print(">>> [register] FAILED: username already registered:", create_user_request.username)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already registered")
 
     # Check for existing email
+    print(">>> [register] Checking for existing email:", create_user_request.email)
     existing_email = db.query(User).filter(
         (User.email == create_user_request.email)
     ).first()
 
     if existing_email:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
+        if existing_email.is_verified:
+            print(">>> [register] FAILED: email already registered and verified:", create_user_request.email)
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
 
+        print(">>> [register] Email exists but is unverified, resending verification email:", create_user_request.email)
+        create_and_send_verification_token(existing_email, db)
+        response.status_code = status.HTTP_200_OK
+        return ResendVerificationResponse(
+            message=f"An account with {create_user_request.email} already exists but hasn't been verified. We've resent the verification email to {create_user_request.email}."
+        )
+
+    print(">>> [register] No conflicts found, creating user row")
     create_user_model = User(
         username=create_user_request.username,
         uid=str(uuid4()),
@@ -209,12 +285,19 @@ async def create_user(create_user_request: CreateUserRequest, db: db_dependency)
     )
     db.add(create_user_model)
     db.commit()
+    print(">>> [register] User row committed with uid:", create_user_model.uid)
+
+    try:
+        create_and_send_verification_token(create_user_model, db)
+        print(">>> [register] Verification email step completed")
+    except Exception as e:
+        print(">>> [register] FAILED sending verification email (non-fatal, continuing):", repr(e))
 
     access_token = create_access_token(create_user_model.username, create_user_model.uid, timedelta(minutes=30))
     refresh_token = create_refresh_token(create_user_model.username, create_user_model.uid, timedelta(days=1), db)
     token = Token(access_token=access_token, token_type="bearer")
     user_model = await get_current_user(token, db=db)
-    print("User created:", user_model)
+    print(">>> [register] SUCCESS. User created:", user_model)
 
     userLoginResponse = {
         "user": user_model,
@@ -299,3 +382,99 @@ async def logout(token: Token, db: db_dependency):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No active sessions found")
 
     return {"detail": "Successfully logged out"}
+
+"""
+    Verify Email
+"""
+@router.post("/verify-email", response_model=VerifyEmailResponse, status_code=status.HTTP_200_OK)
+async def verify_email(request: VerifyEmailRequest, db: db_dependency):
+    verification_token = db.query(EmailVerificationToken).filter(
+        EmailVerificationToken.token == request.token
+    ).first()
+
+    if not verification_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid verification token")
+
+    if verification_token.is_used:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification token already used")
+
+    if verification_token.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Verification token expired")
+
+    user = db.query(User).filter(User.uid == verification_token.user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.is_verified = True
+    verification_token.is_used = True
+    db.commit()
+
+    return VerifyEmailResponse(message="Email verified successfully")
+
+"""
+    Resend Verification Email
+"""
+@router.post("/resend-verification", response_model=ResendVerificationResponse, status_code=status.HTTP_200_OK)
+async def resend_verification(request: ResendVerificationRequest, db: db_dependency):
+    user = db.query(User).filter(User.email == request.email.lower()).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    if user.is_verified:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already verified")
+
+    create_and_send_verification_token(user, db)
+
+    return ResendVerificationResponse(message="Verification email sent")
+
+"""
+    Forgot Password
+"""
+@router.post("/forgot-password", response_model=ForgotPasswordResponse, status_code=status.HTTP_200_OK)
+async def forgot_password(request: ForgotPasswordRequest, db: db_dependency):
+    generic_message = "If an account with that email exists, a password reset link has been sent."
+
+    user = db.query(User).filter(User.email == request.email.lower()).first()
+    if user:
+        create_and_send_password_reset_token(user, db)
+    else:
+        print(">>> [forgot-password] No account found for email (not disclosed to client):", request.email)
+
+    # Always return the same message, regardless of whether the account exists,
+    # so this endpoint can't be used to enumerate registered emails.
+    return ForgotPasswordResponse(message=generic_message)
+
+"""
+    Reset Password
+"""
+@router.post("/reset-password", response_model=ResetPasswordResponse, status_code=status.HTTP_200_OK)
+async def reset_password(request: ResetPasswordRequest, db: db_dependency):
+    if len(request.new_password) < 6:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Password must be at least 6 characters long")
+
+    reset_token = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token == request.token
+    ).first()
+
+    if not reset_token:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid reset token")
+
+    if reset_token.is_used:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset token already used")
+
+    if reset_token.expires_at < datetime.now(timezone.utc):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reset token expired")
+
+    user = db.query(User).filter(User.uid == reset_token.user_id).first()
+    if not user:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.hashed_password = bcrypt_context.hash(request.new_password)
+    reset_token.is_used = True
+
+    # Invalidate existing sessions so a stolen/old session can't survive a password reset
+    db.query(RefreshToken).filter(RefreshToken.user_id == user.uid).update({"is_revoked": True})
+
+    db.commit()
+
+    return ResetPasswordResponse(message="Password reset successfully")

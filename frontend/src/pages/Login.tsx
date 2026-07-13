@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import '../index.css';
 import { useAuth } from '../hooks/useAuth';
+import { authService } from '../services/authService';
 import { Eye, EyeOff, Lock, Code, Play, RotateCcw } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const LoginForm: React.FC = () => {
   const [currentView, setCurrentView] = useState<
@@ -20,33 +21,49 @@ export const LoginForm: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [success, setSuccess] = useState('');
 
-  const { login, register } = useAuth();
+  const { login, register, logout } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get('force_logout') === '1') {
+      logout();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
 
-    if (!formData.username || !formData.password) {
-      setError('Please fill in all required fields');
-      setIsLoading(false);
-      return;
-    }
+    if (currentView === 'forgotPassword') {
+      if (!formData.email) {
+        setError('Please enter your email');
+        setIsLoading(false);
+        return;
+      }
+    } else {
+      if (!formData.username || !formData.password) {
+        setError('Please fill in all required fields');
+        setIsLoading(false);
+        return;
+      }
 
-    if (
-      currentView === 'register' &&
-      (!formData.firstname.trim() || !formData.lastname.trim())
-    ) {
-      setError('Name is required for registration');
-      setIsLoading(false);
-      return;
-    }
+      if (
+        currentView === 'register' &&
+        (!formData.firstname.trim() || !formData.lastname.trim())
+      ) {
+        setError('Name is required for registration');
+        setIsLoading(false);
+        return;
+      }
 
-    if (formData.password.length < 6) {
-      setError('Password must be at least 6 characters long');
-      setIsLoading(false);
-      return;
+      if (formData.password.length < 6) {
+        setError('Password must be at least 6 characters long');
+        setIsLoading(false);
+        return;
+      }
     }
 
     try {
@@ -69,13 +86,15 @@ export const LoginForm: React.FC = () => {
           formData.email
         );
 
-        if (response && response.access_token) {
+        if ('access_token' in response) {
           console.log('Registration successful', response.user);
           navigate('/');
+        } else {
+          setSuccess(response.message);
         }
       } else {
-        // Handle forgot password logic here
-        console.log('Forgot Password for', formData.username);
+        const response = await authService.forgotPassword(formData.email);
+        setSuccess(response.message);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error';
@@ -171,45 +190,41 @@ export const LoginForm: React.FC = () => {
   return (
     <div
       className="min-h-screen flex items-center justify-center bg-gradient-to-b from-blue-200 to-blue-400"
-      style={{ background: 'linear-gradient(#A7E3E0, #14f2e7ff)' }}
+      style={{ background: 'linear-gradient(135deg, #fffbeb, #ffe4c7)' }}
     >
-      <div className="bg-white rounded-xl shadow-lg sm:w-1/2 md:w-1/2 lg:w-1/4 p-6 items-center ">
+      <div className="flex flex-col items-center w-11/12 max-w-lg sm:w-2/3 md:w-1/2 lg:w-1/3">
+        <h1 className="text-3xl font-bold text-indigo-950 mb-6 tracking-tight">
+          TripPlannerPlus
+        </h1>
+        <div className="bg-white rounded-xl shadow-lg w-full p-6 items-center ">
+        {error && (
+          <div className="mb-4 rounded-lg bg-red-100 border border-red-300 text-red-700 text-sm px-4 py-2 text-center">
+            {error}
+          </div>
+        )}
+        {success && (
+          <div className="mb-4 rounded-lg bg-green-100 border border-green-300 text-green-700 text-sm px-4 py-2 text-center">
+            {success}
+          </div>
+        )}
         {/* Log In Form */}
         {currentView === 'login' && (
-          <div>
-            <h2 className="text-xl text-center font-bold">Welcome Back</h2>
-            <label className="block text-md font-medium text-gray-700 mb-2 text-center">
-              Please login into your account
-            </label>
+          <div className="space-y-4">
+            <div className="text-center">
+              <h2 className="text-xl font-bold">Welcome Back</h2>
+              <p className="text-md font-medium text-gray-700 mt-1">
+                Please login into your account
+              </p>
+            </div>
 
-            <br></br>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Username
-            </label>
-            <input
-              type="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  handleSubmit(event);
-                }
-              }}
-              required
-              className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="username or email"
-            />
-            <br></br>
-            <br></br>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <div className="relative">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username
+              </label>
               <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                value={formData.password}
+                type="username"
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
@@ -218,30 +233,52 @@ export const LoginForm: React.FC = () => {
                 }}
                 required
                 className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="password"
+                placeholder="username or email"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-4 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
-              </button>
             </div>
 
-            <div className="flex justify-end mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      handleSubmit(event);
+                    }
+                  }}
+                  required
+                  className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-4 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end -mt-2">
               <button
                 onClick={() => switchView('forgotPassword')}
-                className="text-sm text-blue-500 hover:underline justify-end mt-2"
+                className="text-sm text-blue-500 hover:underline"
               >
                 Forgot Password?
               </button>
             </div>
-            <br></br>
+
             <button
               onClick={handleSubmit}
               onKeyDown={(event) => {
@@ -254,7 +291,7 @@ export const LoginForm: React.FC = () => {
             >
               {getButtonText()}
             </button>
-            <p className="mt-4 text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-gray-600">
               Don't have an account?{' '}
               <button
                 onClick={() => switchView('register')}
@@ -268,33 +305,33 @@ export const LoginForm: React.FC = () => {
 
         {/* Sign Up Form */}
         {currentView === 'register' && (
-          <div>
-            <h2 className="text-xl text-center font-bold">Create Account</h2>
-            <label className="block text-md font-medium text-gray-700 mb-2 text-center">
-              Please fill in the information below
-            </label>
-            <br></br>
+          <div className="space-y-4">
+            <div className="text-center">
+              <h2 className="text-xl font-bold">Create Account</h2>
+              <p className="text-md font-medium text-gray-700 mt-1">
+                Please fill in the information below
+              </p>
+            </div>
 
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              value={formData.email}
-              onChange={handleChange}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  handleSubmit(event);
-                }
-              }}
-              required
-              className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="email"
-            />
-
-            <br></br>
-            <br></br>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    handleSubmit(event);
+                  }
+                }}
+                required
+                className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="email"
+              />
+            </div>
 
             <div className="flex space-x-4">
               <div>
@@ -337,35 +374,14 @@ export const LoginForm: React.FC = () => {
               </div>
             </div>
 
-            <br></br>
-
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Username
-            </label>
-            <input
-              type="username"
-              name="username"
-              value={formData.username}
-              onChange={handleChange}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  handleSubmit(event);
-                }
-              }}
-              required
-              className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="username"
-            />
-            <br></br>
-            <br></br>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <div className="relative">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username
+              </label>
               <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                value={formData.password}
+                type="username"
+                name="username"
+                value={formData.username}
                 onChange={handleChange}
                 onKeyDown={(event) => {
                   if (event.key === 'Enter') {
@@ -374,22 +390,43 @@ export const LoginForm: React.FC = () => {
                 }}
                 required
                 className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                placeholder="password"
+                placeholder="username"
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-4 text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                {showPassword ? (
-                  <EyeOff className="w-5 h-5" />
-                ) : (
-                  <Eye className="w-5 h-5" />
-                )}
-              </button>
             </div>
 
-            <br></br>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      handleSubmit(event);
+                    }
+                  }}
+                  required
+                  className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-4 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={handleSubmit}
               disabled={isLoading}
@@ -402,7 +439,7 @@ export const LoginForm: React.FC = () => {
             >
               {getButtonText()}
             </button>
-            <p className="mt-4 text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-gray-600">
               Already have an account?{' '}
               <button
                 onClick={() => switchView('login')}
@@ -416,32 +453,34 @@ export const LoginForm: React.FC = () => {
 
         {/* Forgot Password Form */}
         {currentView === 'forgotPassword' && (
-          <div>
-            <h2 className="text-xl text-center font-bold">Reset Password</h2>
-            <label className="block text-md font-medium text-gray-700 mb-2 text-center">
-              Enter your email to receive a reset link
-            </label>
+          <div className="space-y-4">
+            <div className="text-center">
+              <h2 className="text-xl font-bold">Reset Password</h2>
+              <p className="text-md font-medium text-gray-700 mt-1">
+                Enter your email to receive a reset link
+              </p>
+            </div>
 
-            <br></br>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
-            </label>
-            <input
-              type="email"
-              name="email"
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  handleSubmit(event);
-                }
-              }}
-              value={formData.email}
-              onChange={handleChange}
-              required
-              className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="email"
-            />
-            <br></br>
-            <br></br>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Email
+              </label>
+              <input
+                type="email"
+                name="email"
+                onKeyDown={(event) => {
+                  if (event.key === 'Enter') {
+                    handleSubmit(event);
+                  }
+                }}
+                value={formData.email}
+                onChange={handleChange}
+                required
+                className="w-full pl-5 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="email"
+              />
+            </div>
+
             <button
               onClick={handleSubmit}
               onKeyDown={(event) => {
@@ -454,7 +493,7 @@ export const LoginForm: React.FC = () => {
             >
               {getButtonText()}
             </button>
-            <p className="mt-4 text-center text-sm text-gray-600">
+            <p className="text-center text-sm text-gray-600">
               Back to{' '}
               <button
                 onClick={() => switchView('login')}
@@ -465,6 +504,7 @@ export const LoginForm: React.FC = () => {
             </p>
           </div>
         )}
+      </div>
       </div>
     </div>
   );

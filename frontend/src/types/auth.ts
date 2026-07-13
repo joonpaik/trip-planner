@@ -1,10 +1,8 @@
 export interface User {
   uid: string;
-  // email: string;
-  // name: string;
+  email: string;
   username: string;
-  // created_at: string;
-  // updated_at: string;
+  is_verified: boolean;
 }
 
 export interface AuthTokens {
@@ -34,6 +32,12 @@ export interface LoginResponse {
   expires_in: number;
 }
 
+export interface MessageResponse {
+  message: string;
+}
+
+export type RegisterResult = LoginResponse | MessageResponse;
+
 export interface RefreshTokenRequest {
   refresh_token: string;
 }
@@ -55,7 +59,8 @@ export interface AuthContextType {
     firstname: string,
     lastname: string,
     username: string
-  ) => Promise<LoginResponse>;
+  ) => Promise<RegisterResult>;
   logout: () => Promise<void>;
   getValidAccessToken: () => Promise<string | null>;
+  refreshUser: () => Promise<void>;
 }

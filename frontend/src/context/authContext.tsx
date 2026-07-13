@@ -5,7 +5,12 @@ import React, {
   useEffect,
   ReactNode,
 } from 'react';
-import { User, AuthContextType, LoginResponse } from '../types/auth';
+import {
+  User,
+  AuthContextType,
+  LoginResponse,
+  RegisterResult,
+} from '../types/auth';
 import { authService } from '../services/authService';
 import { tokenService } from '../services/tokenService';
 
@@ -35,7 +40,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     firstname: string,
     lastname: string,
     email: string
-  ): Promise<LoginResponse> => {
+  ): Promise<RegisterResult> => {
     const response = await authService.register({
       username: username,
       password: password,
@@ -43,8 +48,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       lastname: lastname,
       email: email,
     });
-    tokenService.setTokens(response.access_token, response.refresh_token);
-    setUser(response.user);
+    if ('access_token' in response) {
+      tokenService.setTokens(response.access_token, response.refresh_token);
+      setUser(response.user);
+    }
     return response;
   };
 
@@ -63,14 +70,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const getValidAccessToken = async (): Promise<string | null> => {
     let accessToken = tokenService.getAccessToken();
-    console.log('AuthContext: Current access token:', accessToken);
     if (!accessToken || tokenService.isTokenExpired(accessToken)) {
-      console.log(
-        'AuthContext: Current access token:',
-        accessToken,
-        ' missing, attempting to refresh'
-      );
-
       const refreshToken = tokenService.getRefreshToken();
       if (!refreshToken) {
         console.warn('No refresh token available, logging out');
@@ -83,7 +83,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
 
       try {
-        console.log('Refreshing access token: ', refreshToken);
         const response = await authService.refreshToken({
           refresh_token: refreshToken,
         });
@@ -95,8 +94,15 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         return null;
       }
     }
-    console.log('Valid access token:', accessToken);
     return accessToken;
+  };
+
+  const refreshUser = async (): Promise<void> => {
+    const token = await getValidAccessToken();
+    if (token) {
+      const currentUser = await authService.getCurrentUser(token);
+      setUser(currentUser);
+    }
   };
 
   // Initialize user state
@@ -127,6 +133,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     register,
     logout,
     getValidAccessToken,
+    refreshUser,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
