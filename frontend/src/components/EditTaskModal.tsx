@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { CalendarDropdown } from './CalendarDropdown';
 import { tripService } from '../services/tripService';
 import { useAuth } from '../hooks/useAuth';
@@ -40,6 +40,15 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
   const [taskStatus, setTaskStatus] = useState(task.taskStatus);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const showError = (message: string) => {
+    setError(message);
+    // The error banner lives at the top of a scrollable modal - if the
+    // cost fields are further down, a validation error can fail silently
+    // out of view. Scroll it back into sight whenever one fires.
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const [assignees, setAssignees] = useState<TaskAssigneeCostMember[]>([]);
   const [costEnabled, setCostEnabled] = useState(false);
@@ -75,14 +84,40 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [task.taskId, user]);
 
+  const handleAssigneeCostChange = (uid: string, rawValue: string) => {
+    setAssigneeCosts((prev) => ({
+      ...prev,
+      [uid]: rawValue === '' ? null : Number(rawValue),
+    }));
+  };
+
   const handleSave = async () => {
     if (!user) {
-      setError('You must be logged in to edit a task.');
+      showError('You must be logged in to edit a task.');
       return;
     }
     if (!title.trim() || !deadline) {
-      setError('Please fill in all required fields.');
+      showError('Please fill in all required fields.');
       return;
+    }
+
+    if (costEnabled) {
+      const costSum = Object.values(assigneeCosts).reduce(
+        (sum: number, v) => sum + (v ?? 0),
+        0
+      );
+      if (costSplitType === 'direct' && costSum > (totalCost ?? 0) + 0.005) {
+        showError(
+          `The split amounts ($${costSum.toFixed(2)}) exceed the total cost ($${(totalCost ?? 0).toFixed(2)}). Please adjust before saving.`
+        );
+        return;
+      }
+      if (costSplitType === 'percentage' && costSum > 100.005) {
+        showError(
+          `The split percentages add up to ${costSum.toFixed(2)}%, which is over 100%. Please adjust before saving.`
+        );
+        return;
+      }
     }
 
     setIsLoading(true);
@@ -111,16 +146,29 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
           : [],
       });
 
+      const resolvedCostBreakdown = costEnabled
+        ? assignees.map((a) => ({
+            uid: a.uid,
+            amount:
+              costSplitType === 'direct'
+                ? assigneeCosts[a.uid] ?? 0
+                : ((totalCost ?? 0) * (assigneeCosts[a.uid] ?? 0)) / 100,
+          }))
+        : [];
+
       onSaved({
         ...task,
         taskTitle: title,
         taskDescription: description,
         taskDeadline: parseDateInputValue(deadline) as unknown as Date,
         taskStatus,
+        totalCost: costEnabled ? totalCost : null,
+        costSplitType: costEnabled ? costSplitType : null,
+        costBreakdown: resolvedCostBreakdown,
       });
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to update task');
+      showError(err instanceof Error ? err.message : 'Failed to update task');
     } finally {
       setIsLoading(false);
     }
@@ -128,7 +176,10 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div
+        ref={scrollContainerRef}
+        className="bg-white rounded-lg shadow-xl max-w-lg w-full max-h-[90vh] overflow-y-auto"
+      >
         <div className="p-6">
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-2xl font-bold text-gray-900">Edit Task</h2>
@@ -291,16 +342,11 @@ export const EditTaskModal: React.FC<EditTaskModalProps> = ({
                           <input
                             type="number"
                             min="0"
+                            max={costSplitType === 'direct' ? totalCost ?? 0 : 100}
                             step="0.01"
                             value={assigneeCosts[a.uid] ?? ''}
                             onChange={(e) =>
-                              setAssigneeCosts((prev) => ({
-                                ...prev,
-                                [a.uid]:
-                                  e.target.value === ''
-                                    ? null
-                                    : Number(e.target.value),
-                              }))
+                              handleAssigneeCostChange(a.uid, e.target.value)
                             }
                             placeholder={
                               costSplitType === 'direct' ? '$0.00' : '0%'

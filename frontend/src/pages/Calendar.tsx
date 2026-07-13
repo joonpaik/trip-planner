@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../index.css';
 import NavBar from '../components/Navbar';
@@ -171,8 +171,22 @@ const CalendarPage: React.FC = () => {
     return members.some((member) => selectedUserIds.has(member.uid));
   });
 
+  // Colors are assigned by position among this user's own trips (sorted by
+  // id for stability), not by raw trip id - basing it on the id directly
+  // let two trips collide on the same color whenever their ids happened to
+  // be a multiple of the palette length apart, even with just a handful of
+  // trips visible.
+  const tripColorMap = useMemo(() => {
+    const sorted = [...trips].sort((a, b) => a.id - b.id);
+    const map = new Map<number, string>();
+    sorted.forEach((trip, index) => {
+      map.set(trip.id, TRIP_COLORS[index % TRIP_COLORS.length]);
+    });
+    return map;
+  }, [trips]);
+
   const tripColor = (tripId: number) =>
-    TRIP_COLORS[tripId % TRIP_COLORS.length];
+    tripColorMap.get(tripId) ?? TRIP_COLORS[0];
 
   const tripsOnDate = (date: Date) => {
     const day = startOfDay(date).getTime();

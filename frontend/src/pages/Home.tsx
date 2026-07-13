@@ -564,18 +564,34 @@ const Home: React.FC = () => {
     setAllTripTasks((prev) => prev.filter((t) => t.taskId !== taskId));
   };
 
+  // Task changes can shift other members' completion counts (e.g. a task
+  // assigned to them got completed or deleted), so re-pull the progress
+  // rings whenever a task is touched instead of letting them go stale.
+  const refreshMemberProgress = async () => {
+    if (!user || !upcomingTrip) return;
+    try {
+      const memberProgressResponse = await tripService.fetchTripMemberProgress(
+        {
+          uid: user.uid,
+          tripId: upcomingTrip.id,
+        }
+      );
+      setOtherMemberProgress(memberProgressResponse.members);
+    } catch (err) {
+      console.error('Error refreshing member progress:', err);
+    }
+  };
+
   const handleCompleteTask = async (task: FilteredTask) => {
     if (!user) return;
     try {
-      await tripService.updateTask({
+      await tripService.updateTaskStatus({
         uid: user.uid,
         taskId: task.taskId,
-        title: task.taskTitle,
-        description: task.taskDescription,
-        deadline: new Date(task.taskDeadline).toISOString(),
         status: 2,
       });
       updateTaskInState(task.taskId, { taskStatus: 2 });
+      refreshMemberProgress();
     } catch (error) {
       alert(
         error instanceof Error ? error.message : 'Failed to complete task'
@@ -589,6 +605,7 @@ const Home: React.FC = () => {
     try {
       await tripService.deleteTask({ uid: user.uid, taskId: task.taskId });
       removeTaskFromState(task.taskId);
+      refreshMemberProgress();
     } catch (error) {
       alert(error instanceof Error ? error.message : 'Failed to delete task');
     }
@@ -1163,7 +1180,10 @@ const Home: React.FC = () => {
           <EditTaskModal
             task={editingTask}
             onClose={() => setEditingTask(null)}
-            onSaved={(updated) => updateTaskInState(updated.taskId, updated)}
+            onSaved={(updated) => {
+              updateTaskInState(updated.taskId, updated);
+              refreshMemberProgress();
+            }}
           />
         )}
 
